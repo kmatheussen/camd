@@ -1,0 +1,117 @@
+              SECTION      text,CODE
+__code:
+CamdGetMidi:
+;    1:/*
+;    2:    (C) 2001 AROS - The Amiga Research OS
+;    3:    $Id: getmidi.c,v 1.1 2001/01/17 18:51:30 ksvalast Exp $
+;    4:
+;    5:    Desc:
+;    6:    Lang: English
+;    7:*/
+;    8:
+;    9:#include <proto/exec.h>
+;   10:
+;   11:#include "camd_intern.h"
+;   12:
+;   13:/*****************************************************************************
+;   14:
+;   15:    NAME */
+;   16:
+;   17:	AROS_LH2(BOOL, GetMidi,
+;   18:
+;   19:/*  SYNOPSIS */
+;   20:	AROS_LHA(struct MidiNode *, midinode, A0),
+;   21:	AROS_LHA(MidiMsg *, msg, A1),
+;   22:
+;   23:/*  LOCATION */
+;   24:	struct CamdBase *, CamdBase, 24, Camd)
+              MOVEM.L        A3/A4/A5,-(A7)           ;48e7 001c 
+___CamdGetMidi__1:
+              MOVE.L         A1,A3                    ;2649 
+              MOVE.L         A0,A5                    ;2a48 
+              LEA            (LinkerDB).l,A4          ;49f9 0000 0000 
+;   25:
+;   26:/*  FUNCTION
+;   27:		Gets a message from a midinodes buffer.
+;   28:
+;   29:    INPUTS
+;   30:		midinode - pointer to midinode
+;   31:		msg - The message is removed from the internal buffer and copied into msg.
+;   32:
+;   33:    RESULT
+;   34:		TRUE if message was copied, FALSE if buffer was empty.
+;   35:
+;   36:    NOTES
+;   37:
+;   38:    EXAMPLE
+;   39:
+;   40:    BUGS
+;   41:
+;   42:    SEE ALSO
+;   43:		WaitMidi
+;   44:
+;   45:    INTERNALS
+;   46:
+;   47:    HISTORY
+;   48:
+;   49:	2001-01-12 ksvalast first created
+;   50:
+;   51:*****************************************************************************/
+;   52:{
+;   53:    AROS_LIBFUNC_INIT
+;   54:    AROS_LIBBASE_EXT_DECL(struct CamdBase *,CamdBase)
+;   55:
+;   56:	struct MyMidiNode *mymidinode=(struct MyMidiNode *)midinode;
+;   57:	MidiMsg *mymsg;
+;   58:
+;   59:	if(mymidinode->unpicked==0){
+              MOVE.L         $58(A5),D0               ;202d 0058 
+              BEQ.B          ___CamdGetMidi__7        ;6736 
+___CamdGetMidi__2:
+;   60:		return FALSE;
+              MOVE.L         $5c(A5),A0               ;206d 005c 
+;   61:	}
+;   62:	mymsg=mymidinode->in_curr_get;
+;   63:
+;   64:	msg->mm_Msg=mymsg->mm_Msg;
+              MOVE.L         (A0),(A3)                ;2690 
+;   65:	msg->mm_Time=mymsg->mm_Time;
+              MOVE.L         $4(A0),$4(A3)            ;2768 0004 0004 
+;   66:
+;   67:	mymidinode->unpicked--;
+              SUBQ.L         #$1,$58(A5)              ;53ad 0058 
+;   68:
+;   69:	mymidinode->in_curr_get++;
+              LEA            $8(A0),A1                ;43e8 0008 
+              MOVE.L         A1,$5c(A5)               ;2b49 005c 
+;   70:	if(mymidinode->in_curr_get==mymidinode->in_end){
+              CMP.L          $54(A5),A1               ;b3ed 0054 
+              BNE.B          ___CamdGetMidi__4        ;6606 
+___CamdGetMidi__3:
+;   71:		mymidinode->in_curr_get=mymidinode->in_start;
+              MOVE.L         $4c(A5),$5c(A5)          ;2b6d 004c 005c 
+___CamdGetMidi__4:
+;   72:	}
+;   73:
+;   74:	mymidinode->lastreadstatus=msg->mm_Status;
+              MOVE.B         (A3),D0                  ;1013 
+              MOVE.B         D0,$104(A5)              ;1b40 0104 
+;   75:
+;   76:	if(msg->mm_Status==0xf0)
+              CMPI.B         #$f0,(A3)                ;0c13 00f0 
+              BNE.B          ___CamdGetMidi__6        ;6604 
+___CamdGetMidi__5:
+;   77:		mymidinode->sysex_nextis0=FALSE;
+              CLR.W          $102(A5)                 ;426d 0102 
+___CamdGetMidi__6:
+;   78:
+;   79:	return TRUE;
+              MOVEQ.L        #$1,D0                   ;7001 
+___CamdGetMidi__7:
+              MOVEM.L        (A7)+,A3/A4/A5           ;4cdf 3800 
+              RTS                                     ;4e75 
+__const:
+__strings:
+              XREF           LinkerDB
+              XDEF           CamdGetMidi
+              END

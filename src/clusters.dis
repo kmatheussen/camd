@@ -1,0 +1,959 @@
+              SECTION      text,CODE
+__code:
+@RemoveCluster:
+;    1:/*
+;    2:    (C) 2001 AROS - The Amiga Research OS
+;    3:    $Id: clusters.c,v 1.3 2001/01/22 00:43:31 ksvalast Exp $
+;    4:
+;    5:    Desc:
+;    6:    Lang: English
+;    7:*/
+;    8:
+;    9:#include <proto/exec.h>
+;   10:
+;   11:#include "camd_intern.h"
+;   12:
+;   13:
+;   14:#  undef DEBUG
+;   15:#  define DEBUG 1
+;   16:#  include AROS_DEBUG_H_FILE
+;   17:
+;   18:/*
+;   19: *  CLSemaphore must be obtained and the clusters mutex must
+;   20: *  not be exclusive locked.
+;   21: */
+;   22:void RemoveCluster(struct MidiCluster *cluster,struct CamdBase *CamdBase){
+              MOVEM.L        A3/A5/A6,-(A7)           ;48e7 0016 
+___RemoveCluster__1:
+              MOVE.L         A1,A3                    ;2649 
+              MOVE.L         A0,A5                    ;2a48 
+;   23:  if(cluster==NULL) return;
+              MOVE.L         A5,D0                    ;200d 
+              BEQ.B          ___RemoveCluster__5      ;671e 
+___RemoveCluster__2:
+              MOVE.L         A5,A1                    ;224d 
+;   24:
+;   25:  Remove(&cluster->mcl_Node);
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              JSR            $ffffff04(A6)            ;4eae ff04 
+;   26:
+;   27:  if(cluster->mcl_Node.ln_Name!=NULL){
+              MOVE.L         $a(A5),D0                ;202d 000a 
+              BEQ.B          ___RemoveCluster__4      ;6706 
+___RemoveCluster__3:
+;   28:    FreeVec(cluster->mcl_Node.ln_Name);
+              MOVE.L         D0,A1                    ;2240 
+              JSR            $fffffd4e(A6)            ;4eae fd4e 
+___RemoveCluster__4:
+;   29:  }
+;   30:  FreeMem(cluster,sizeof(struct MyMidiCluster));
+              MOVE.L         A5,A1                    ;224d 
+              MOVEQ.L        #$5e,D0                  ;705e 
+              JSR            $ffffff2e(A6)            ;4eae ff2e 
+___RemoveCluster__5:
+              MOVEM.L        (A7)+,A3/A5/A6           ;4cdf 6800 
+              RTS                                     ;4e75 
+__const:
+__strings:
+@LinkHasBeenRemovedFromCluster:
+;   31:}
+;   32:
+;   33:
+;   34:/*
+;   35: * REQUIREMENTS
+;   36: * 	CLSemaphore must be obtained and the clusters mutex must
+;   37: *  	not be exclusive locked. The link must not be freed before calling.
+;   38: * NOTE
+;   39: *  	A cluster can never have both a hardware receiver and sender.
+;   40: */
+;   41:void LinkHasBeenRemovedFromCluster(struct MidiCluster *cluster,struct CamdBase *CamdBase){
+              SUBQ.W         #$4,A7                   ;594f 
+              MOVEM.L        A2/A3/A5/A6,-(A7)        ;48e7 0036 
+___LinkHasBeenRemovedFromCluster__1:
+              MOVE.L         A1,A3                    ;2649 
+              MOVE.L         A0,A5                    ;2a48 
+;   42:  struct Node *node;
+;   43:  struct DriverData *driverdata;
+;   44:
+;   45:  if( ! (IsListEmpty(&cluster->mcl_Receivers))){
+              LEA            $10(A5),A0               ;41ed 0010 
+              MOVE.L         A0,$10(A7)               ;2f48 0010 
+              MOVE.L         $18(A5),A1               ;226d 0018 
+              CMP.L          A0,A1                    ;b3c8 
+              BEQ.B          ___LinkHasBeenRemovedFromCluster__10;673e 
+___LinkHasBeenRemovedFromCluster__2:
+;   46:    node=cluster->mcl_Receivers.lh_Head;
+              MOVE.L         $10(A5),A2               ;246d 0010 
+;   47:
+;   48:    while(node->ln_Succ!=NULL){
+              BRA.B          ___LinkHasBeenRemovedFromCluster__9;6034 
+___LinkHasBeenRemovedFromCluster__3:
+;   49:      if(node->ln_Type==NT_USER-MLTYPE_NTypes){
+              CMPI.B         #$fc,$8(A2)              ;0c2a 00fc 0008 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__8;662a 
+___LinkHasBeenRemovedFromCluster__4:
+;   50:	
+;   51:	/* We now know that the cluster has a hardware-receiver. */
+;   52:	
+;   53:	if(IsListEmpty(&cluster->mcl_Senders)){
+              LEA            $1e(A5),A0               ;41ed 001e 
+              MOVE.L         $26(A5),A1               ;226d 0026 
+              CMP.L          A0,A1                    ;b3c8 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__10;6624 
+___LinkHasBeenRemovedFromCluster__5:
+;   54:	
+;   55:	  /* And we now know that the cluster has no senders. */
+;   56:	
+;   57:	  driverdata=(struct DriverData *)cluster->mcl_Receivers.lh_Head;
+              MOVE.L         $10(A5),A0               ;206d 0010 
+;   58:	
+;   59:	  /* We mark the hardware-receiver not to be in use. */
+;   60:	
+;   61:	  if(driverdata->isOutOpen==TRUE){
+              MOVEQ.L        #$1,D0                   ;7001 
+              CMP.W          $36(A0),D0               ;b068 0036 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__10;6618 
+___LinkHasBeenRemovedFromCluster__6:
+;   62:	    driverdata->isOutOpen=FALSE;
+              CLR.W          $36(A0)                  ;4268 0036 
+;   63:	
+;   64:	    /* And we close it if the hardware-sender is not in use either. */
+;   65:	
+;   66:	    if(driverdata->isInOpen==FALSE){
+              TST.W          $34(A0)                  ;4a68 0034 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__10;660e 
+___LinkHasBeenRemovedFromCluster__7:
+;   67:	      CloseDriver(driverdata,CamdBase);
+              MOVE.L         A3,A1                    ;224b 
+              BSR.W          @CloseDriver             ;6100 0000 
+;   68:	    }
+;   69:	  }
+;   70:	
+;   71:	}
+;   72:	break;
+              BRA.B          ___LinkHasBeenRemovedFromCluster__10;6006 
+___LinkHasBeenRemovedFromCluster__8:
+;   73:      }
+;   74:      node=node->ln_Succ;
+              MOVE.L         (A2),A2                  ;2452 
+___LinkHasBeenRemovedFromCluster__9:
+;   75:    }
+              TST.L          (A2)                     ;4a92 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__3;66c8 
+___LinkHasBeenRemovedFromCluster__10:
+;   76:
+;   77:  }
+;   78:
+;   79:
+;   80:  if( ! (IsListEmpty(&cluster->mcl_Senders))){
+              LEA            $1e(A5),A0               ;41ed 001e 
+              MOVE.L         $26(A5),A1               ;226d 0026 
+              CMP.L          A0,A1                    ;b3c8 
+              BEQ.B          ___LinkHasBeenRemovedFromCluster__20;6742 
+___LinkHasBeenRemovedFromCluster__11:
+;   81:
+;   82:    node=cluster->mcl_Senders.lh_Head;
+              MOVE.L         $1e(A5),A2               ;246d 001e 
+;   83:
+;   84:    while(node->ln_Succ!=NULL){
+              BRA.B          ___LinkHasBeenRemovedFromCluster__18;6036 
+___LinkHasBeenRemovedFromCluster__12:
+;   85:      if(node->ln_Type==NT_USER-MLTYPE_NTypes){
+              CMPI.B         #$fc,$8(A2)              ;0c2a 00fc 0008 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__17;662c 
+___LinkHasBeenRemovedFromCluster__13:
+;   86:	
+;   87:	/* We now now that the cluster only has a hardware-sender. */
+;   88:	
+;   89:	if(IsListEmpty(&cluster->mcl_Receivers)){
+              MOVE.L         $18(A5),A0               ;206d 0018 
+              CMP.L          $10(A7),A0               ;b1ef 0010 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__26;6662 
+___LinkHasBeenRemovedFromCluster__14:
+;   90:	
+;   91:	  /* And we now know that the cluster has no senders. */
+;   92:	
+;   93:	  driverdata=(struct DriverData *)cluster->mcl_Senders.lh_Head;
+;   94:	  driverdata=(struct DriverData *)(((char *)driverdata-sizeof(struct Node)));
+              MOVE.L         $1e(A5),A0               ;206d 001e 
+              ADD.W          #$fffffff2,A0            ;d0fc fff2 
+;   95:	  /* We mark the hardware-sender not to be in use. */
+;   96:	
+;   97:	  if(driverdata->isInOpen==TRUE){
+              MOVEQ.L        #$1,D0                   ;7001 
+              CMP.W          $34(A0),D0               ;b068 0034 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__26;6652 
+___LinkHasBeenRemovedFromCluster__15:
+;   98:	    driverdata->isInOpen=FALSE;
+              CLR.W          $34(A0)                  ;4268 0034 
+;   99:	
+;  100:	    /* And we close it if the hardware-receiver is not in use either. */
+;  101:	
+;  102:	    if(driverdata->isOutOpen==FALSE){
+              TST.W          $36(A0)                  ;4a68 0036 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__26;6648 
+___LinkHasBeenRemovedFromCluster__16:
+;  103:	      CloseDriver(driverdata,CamdBase);
+              MOVE.L         A3,A1                    ;224b 
+              BSR.W          @CloseDriver             ;6100 0000 
+;  104:	    }
+;  105:	  }
+;  106:	}
+;  107:	break;
+              BRA.B          ___LinkHasBeenRemovedFromCluster__26;6040 
+___LinkHasBeenRemovedFromCluster__17:
+;  108:      }
+;  109:      node=node->ln_Succ;
+              MOVE.L         (A2),A2                  ;2452 
+___LinkHasBeenRemovedFromCluster__18:
+;  110:    }
+              TST.L          (A2)                     ;4a92 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__12;66c6 
+___LinkHasBeenRemovedFromCluster__19:
+;  111:
+;  112:
+;  113:    return;
+              BRA.B          ___LinkHasBeenRemovedFromCluster__26;6038 
+___LinkHasBeenRemovedFromCluster__20:
+;  114:  }
+;  115:
+;  116:  if(
+;  117:     (IsListEmpty(&cluster->mcl_Receivers)) &&
+              MOVE.L         $18(A5),A0               ;206d 0018 
+              CMP.L          $10(A7),A0               ;b1ef 0010 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__26;662e 
+___LinkHasBeenRemovedFromCluster__21:
+;  118:     (IsListEmpty(&cluster->mcl_Senders))
+              LEA            $1e(A5),A0               ;41ed 001e 
+              MOVE.L         $26(A5),A1               ;226d 0026 
+              CMP.L          A0,A1                    ;b3c8 
+              BNE.B          ___LinkHasBeenRemovedFromCluster__26;6622 
+___LinkHasBeenRemovedFromCluster__22:
+;  119:     ){
+;  120:    RemoveCluster(cluster,CamdBase);
+              MOVE.L         A5,D0                    ;200d 
+              BEQ.B          ___LinkHasBeenRemovedFromCluster__26;671e 
+___LinkHasBeenRemovedFromCluster__23:
+              MOVE.L         A5,A1                    ;224d 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              JSR            $ffffff04(A6)            ;4eae ff04 
+              MOVE.L         $a(A5),D0                ;202d 000a 
+              BEQ.B          ___LinkHasBeenRemovedFromCluster__25;6706 
+___LinkHasBeenRemovedFromCluster__24:
+              MOVE.L         D0,A1                    ;2240 
+              JSR            $fffffd4e(A6)            ;4eae fd4e 
+___LinkHasBeenRemovedFromCluster__25:
+              MOVE.L         A5,A1                    ;224d 
+              MOVEQ.L        #$5e,D0                  ;705e 
+              JSR            $ffffff2e(A6)            ;4eae ff2e 
+___LinkHasBeenRemovedFromCluster__26:
+              MOVEM.L        (A7)+,A2/A3/A5/A6        ;4cdf 6c00 
+              ADDQ.W         #$4,A7                   ;584f 
+              RTS                                     ;4e75 
+@NewCluster:
+;  121:  }
+;  122:}
+;  123:
+;  124:
+;  125:/*
+;  126:	CLSemaphore must be obtained first.
+;  127:*/
+;  128:
+;  129:struct MidiCluster *NewCluster(char *name,struct CamdBase *CamdBase){
+              MOVEM.L        A2/A3/A5/A6,-(A7)        ;48e7 0036 
+___NewCluster__1:
+              MOVE.L         A1,A3                    ;2649 
+              MOVE.L         A0,A5                    ;2a48 
+;  130:	struct MyMidiCluster *mymidicluster;
+;  131:	struct MidiCluster *midicluster;
+;  132:
+;  133:
+;  134:	mymidicluster=AllocMem(sizeof(struct MyMidiCluster),MEMF_ANY | MEMF_CLEAR | MEMF_PUBLIC);
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              MOVEQ.L        #$5e,D0                  ;705e 
+              MOVE.L         #$10001,D1               ;223c 0001 0001 
+              JSR            $ffffff3a(A6)            ;4eae ff3a 
+              MOVE.L         D0,A2                    ;2440 
+;  135:
+;  136:	if(mymidicluster==NULL) return NULL;
+              TST.L          D0                       ;4a80 
+              BNE.B          ___NewCluster__3         ;6604 
+___NewCluster__2:
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___NewCluster__6         ;6076 
+___NewCluster__3:
+;  137:
+;  138:	InitSemaphore(&mymidicluster->semaphore);
+              LEA            $30(A2),A0               ;41ea 0030 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              JSR            $fffffdd2(A6)            ;4eae fdd2 
+;  139:
+;  140:	midicluster=&mymidicluster->cluster;
+;  141:
+;  142:	midicluster->mcl_Node.ln_Name=AllocVec(mystrlen(name) + 1,MEMF_ANY|MEMF_PUBLIC);
+              MOVE.L         A5,A0                    ;204d 
+              BSR.W          @mystrlen                ;6100 0000 
+              ADDQ.L         #$1,D0                   ;5280 
+              MOVEQ.L        #$1,D1                   ;7201 
+              JSR            $fffffd54(A6)            ;4eae fd54 
+              MOVE.L         D0,$a(A2)                ;2540 000a 
+;  143:
+;  144:	if(midicluster->mcl_Node.ln_Name==NULL){
+              BNE.B          ___NewCluster__5         ;6610 
+___NewCluster__4:
+;  145:		FreeMem(midicluster,sizeof(struct MyMidiCluster));
+              MOVE.L         A2,A1                    ;224a 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              MOVEQ.L        #$5e,D0                  ;705e 
+              JSR            $ffffff2e(A6)            ;4eae ff2e 
+;  146:		return NULL;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___NewCluster__6         ;6046 
+___NewCluster__5:
+;  147:	}
+;  148:
+;  149:	mysprintf(CamdBase,midicluster->mcl_Node.ln_Name,"%s",name);
+              MOVE.L         A5,-(A7)                 ;2f0d 
+              PEA            __MERGED(A4)             ;486c 0000 
+              MOVE.L         D0,-(A7)                 ;2f00 
+              MOVE.L         A3,-(A7)                 ;2f0b 
+              BSR.W          mysprintf                ;6100 0000 
+              LEA            $10(A7),A7               ;4fef 0010 
+;  150:
+;  151:	NEWLIST(&midicluster->mcl_Receivers);
+              LEA            $10(A2),A0               ;41ea 0010 
+              MOVE.L         A0,$8(A0)                ;2148 0008 
+              CLR.L          $4(A0)                   ;42a8 0004 
+              LEA            $14(A2),A1               ;43ea 0014 
+              MOVE.L         A1,(A0)                  ;2089 
+;  152:	NEWLIST(&midicluster->mcl_Senders);
+              LEA            $1e(A2),A0               ;41ea 001e 
+              MOVE.L         A0,$8(A0)                ;2148 0008 
+              CLR.L          $4(A0)                   ;42a8 0004 
+              LEA            $22(A2),A1               ;43ea 0022 
+              MOVE.L         A1,(A0)                  ;2089 
+;  153:
+;  154:	AddTail(&CB(CamdBase)->midiclusters,&midicluster->mcl_Node);
+              LEA            $44(A3),A0               ;41eb 0044 
+              MOVE.L         A2,A1                    ;224a 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              JSR            $ffffff0a(A6)            ;4eae ff0a 
+;  155:
+;  156:
+;  157:	return midicluster;
+              MOVE.L         A2,D0                    ;200a 
+___NewCluster__6:
+              MOVEM.L        (A7)+,A2/A3/A5/A6        ;4cdf 6c00 
+              RTS                                     ;4e75 
+@FindReceiverDriverInCluster:
+;  158:}
+;  159:
+;  160:
+;  161:/*
+;  162:	CLSemaphore must have been obtained before calling.
+;  163:*/
+;  164:struct DriverData *FindReceiverDriverInCluster(struct MidiCluster *cluster){
+              SUBQ.W         #$4,A7                   ;594f 
+              MOVE.L         A5,-(A7)                 ;2f0d 
+___FindReceiverDriverInCluster__1:
+              MOVE.L         A0,A5                    ;2a48 
+;  165:	struct Node *node;
+;  166:
+;  167:	if( ! (IsListEmpty(&cluster->mcl_Receivers))){
+              LEA            $10(A5),A1               ;43ed 0010 
+              MOVE.L         A0,$4(A7)                ;2f48 0004 
+              MOVE.L         $18(A5),A0               ;206d 0018 
+              CMP.L          A1,A0                    ;b1c9 
+              BEQ.B          ___FindReceiverDriverInCluster__7;6718 
+___FindReceiverDriverInCluster__2:
+;  168:		node=cluster->mcl_Receivers.lh_Head;
+              MOVE.L         $10(A5),A5               ;2a6d 0010 
+;  169:
+;  170:		while(node->ln_Succ!=NULL){
+              BRA.B          ___FindReceiverDriverInCluster__6;600e 
+___FindReceiverDriverInCluster__3:
+;  171:			if(node->ln_Type==NT_USER-MLTYPE_NTypes) return (struct DriverData *)node;
+              CMPI.B         #$fc,$8(A5)              ;0c2d 00fc 0008 
+              BNE.B          ___FindReceiverDriverInCluster__5;6604 
+___FindReceiverDriverInCluster__4:
+              MOVE.L         A5,D0                    ;200d 
+              BRA.B          ___FindReceiverDriverInCluster__8;6008 
+___FindReceiverDriverInCluster__5:
+;  172:			node=node->ln_Succ;
+              MOVE.L         (A5),A5                  ;2a55 
+___FindReceiverDriverInCluster__6:
+;  173:		}
+              TST.L          (A5)                     ;4a95 
+              BNE.B          ___FindReceiverDriverInCluster__3;66ee 
+___FindReceiverDriverInCluster__7:
+;  174:	}
+;  175:	return NULL;
+              MOVEQ.L        #$0,D0                   ;7000 
+___FindReceiverDriverInCluster__8:
+              MOVE.L         (A7)+,A5                 ;2a5f 
+              ADDQ.W         #$4,A7                   ;584f 
+              RTS                                     ;4e75 
+@FindSenderDriverInCluster:
+;  176:}
+;  177:
+;  178:/*
+;  179:	CLSemaphore must have been obtained before calling.
+;  180:*/
+;  181:
+;  182:struct DriverData *FindSenderDriverInCluster(struct MidiCluster *cluster){
+              SUBQ.W         #$4,A7                   ;594f 
+              MOVE.L         A5,-(A7)                 ;2f0d 
+___FindSenderDriverInCluster__1:
+              MOVE.L         A0,A5                    ;2a48 
+;  183:	struct Node *node;
+;  184:
+;  185:	if( ! (IsListEmpty(&cluster->mcl_Senders))){
+              LEA            $1e(A5),A1               ;43ed 001e 
+              MOVE.L         A0,$4(A7)                ;2f48 0004 
+              MOVE.L         $26(A5),A0               ;206d 0026 
+              CMP.L          A1,A0                    ;b1c9 
+              BEQ.B          ___FindSenderDriverInCluster__7;671c 
+___FindSenderDriverInCluster__2:
+;  186:		node=cluster->mcl_Senders.lh_Head;
+              MOVE.L         $1e(A5),A5               ;2a6d 001e 
+;  187:
+;  188:		while(node->ln_Succ!=NULL){
+              BRA.B          ___FindSenderDriverInCluster__6;6012 
+___FindSenderDriverInCluster__3:
+;  189:			if(node->ln_Type==NT_USER-MLTYPE_NTypes){
+              CMPI.B         #$fc,$8(A5)              ;0c2d 00fc 0008 
+              BNE.B          ___FindSenderDriverInCluster__5;6608 
+___FindSenderDriverInCluster__4:
+;  190:				return (struct DriverData *)(((char *)node-sizeof(struct Node)));
+              LEA            $fffffff2(A5),A0         ;41ed fff2 
+              MOVE.L         A0,D0                    ;2008 
+              BRA.B          ___FindSenderDriverInCluster__8;6008 
+___FindSenderDriverInCluster__5:
+;  191:			}
+;  192:			node=node->ln_Succ;
+              MOVE.L         (A5),A5                  ;2a55 
+___FindSenderDriverInCluster__6:
+;  193:		}
+              TST.L          (A5)                     ;4a95 
+              BNE.B          ___FindSenderDriverInCluster__3;66ea 
+___FindSenderDriverInCluster__7:
+;  194:	}
+;  195:	return NULL;
+              MOVEQ.L        #$0,D0                   ;7000 
+___FindSenderDriverInCluster__8:
+              MOVE.L         (A7)+,A5                 ;2a5f 
+              ADDQ.W         #$4,A7                   ;584f 
+              RTS                                     ;4e75 
+@AddClusterReceiver:
+;  196:}
+;  197:
+;  198:
+;  199:/*
+;  200:	CLSemaphore must have been obtained before calling.
+;  201:	The clusters exclusive mutex must not have be obtained.
+;  202:*/
+;  203:
+;  204:BOOL AddClusterReceiver(
+;  205:	struct MidiCluster *cluster,
+;  206:	struct Node *node,
+;  207:	ULONG *ErrorCode,
+;  208:	struct CamdBase *CamdBase
+;  209:){
+              MOVEM.L        A2/A3/A5/A6,-(A7)        ;48e7 0036 
+___AddClusterReceiver__1:
+              MOVE.L         A1,A3                    ;2649 
+              MOVE.L         A0,A5                    ;2a48 
+;  210:	struct MidiLink *midilink;
+;  211:	struct DriverData *driverdata;
+;  212:	struct MyMidiCluster *mycluster=(struct MyMidiCluster *)cluster;
+;  213:
+;  214:	if(node->ln_Type!=NT_USER-MLTYPE_NTypes){
+              CMPI.B         #$fc,$8(A3)              ;0c2b 00fc 0008 
+              BEQ.B          ___AddClusterReceiver__16;676c 
+___AddClusterReceiver__2:
+;  215:	  driverdata=FindSenderDriverInCluster(cluster);
+              LEA            $1e(A5),A0               ;41ed 001e 
+              MOVE.L         $26(A5),A1               ;226d 0026 
+              CMP.L          A0,A1                    ;b3c8 
+              BEQ.B          ___AddClusterReceiver__8 ;671a 
+___AddClusterReceiver__3:
+              MOVE.L         $1e(A5),A2               ;246d 001e 
+              BRA.B          ___AddClusterReceiver__7 ;6010 
+___AddClusterReceiver__4:
+              CMPI.B         #$fc,$8(A2)              ;0c2a 00fc 0008 
+              BNE.B          ___AddClusterReceiver__6 ;6606 
+___AddClusterReceiver__5:
+              ADD.W          #$fffffff2,A2            ;d4fc fff2 
+              BRA.B          ___AddClusterReceiver__9 ;6008 
+___AddClusterReceiver__6:
+              MOVE.L         (A2),A2                  ;2452 
+___AddClusterReceiver__7:
+              TST.L          (A2)                     ;4a92 
+              BNE.B          ___AddClusterReceiver__4 ;66ec 
+___AddClusterReceiver__8:
+              SUB.L          A2,A2                    ;95ca 
+___AddClusterReceiver__9:
+;  216:	  if(driverdata!=NULL){
+              MOVE.L         A2,D0                    ;200a 
+              BEQ.B          ___AddClusterReceiver__15;672a 
+___AddClusterReceiver__10:
+;  217:			if(driverdata->isInOpen==FALSE && driverdata->isOutOpen==FALSE){
+              TST.W          $34(A2)                  ;4a6a 0034 
+              BNE.B          ___AddClusterReceiver__15;6624 
+___AddClusterReceiver__11:
+              TST.W          $36(A2)                  ;4a6a 0036 
+              BNE.B          ___AddClusterReceiver__15;661e 
+___AddClusterReceiver__12:
+;  218:				if(OpenDriver(driverdata,ErrorCode,CamdBase)==FALSE){
+              MOVE.L         $18(A7),-(A7)            ;2f2f 0018 
+              MOVE.L         A2,A0                    ;204a 
+              MOVE.L         $18(A7),A1               ;226f 0018 
+              BSR.W          @OpenDriver              ;6100 0000 
+              ADDQ.W         #$4,A7                   ;584f 
+              TST.W          D0                       ;4a40 
+              BNE.B          ___AddClusterReceiver__14;6604 
+___AddClusterReceiver__13:
+;  219:					return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___AddClusterReceiver__18;6044 
+___AddClusterReceiver__14:
+;  220:				}
+;  221:	
+;  222:				driverdata->isInOpen=TRUE;
+              MOVE.W         #$1,$34(A2)              ;357c 0001 0034 
+___AddClusterReceiver__15:
+;  223:			}
+;  224:		}
+;  225:		midilink=(struct MidiLink *)node;
+;  226:		ObtainSemaphore(&mycluster->semaphore);
+              LEA            $30(A5),A0               ;41ed 0030 
+              MOVE.L         $18(A7),A2               ;246f 0018 
+              MOVE.L         $22(A2),A6               ;2c6a 0022 
+              JSR            $fffffdcc(A6)            ;4eae fdcc 
+;  227:		midilink->ml_Location=cluster;
+              MOVE.L         A5,$1c(A3)               ;274d 001c 
+              BRA.B          ___AddClusterReceiver__17;6010 
+___AddClusterReceiver__16:
+;  228:	}else{
+;  229:		/* The receiver is a hardware-receiver, not a midilink. */
+;  230:		ObtainSemaphore(&mycluster->semaphore);
+              LEA            $30(A5),A0               ;41ed 0030 
+              MOVE.L         $18(A7),A2               ;246f 0018 
+              MOVE.L         $22(A2),A6               ;2c6a 0022 
+              JSR            $fffffdcc(A6)            ;4eae fdcc 
+___AddClusterReceiver__17:
+;  231:	}
+;  232:
+;  233:	Enqueue(&cluster->mcl_Receivers,node);
+              LEA            $10(A5),A0               ;41ed 0010 
+              MOVE.L         A3,A1                    ;224b 
+              MOVE.L         $22(A2),A6               ;2c6a 0022 
+              JSR            $fffffef2(A6)            ;4eae fef2 
+;  234:	ReleaseSemaphore(&mycluster->semaphore);
+              LEA            $30(A5),A0               ;41ed 0030 
+              JSR            $fffffdc6(A6)            ;4eae fdc6 
+;  235:
+;  236:	return TRUE;
+              MOVEQ.L        #$1,D0                   ;7001 
+___AddClusterReceiver__18:
+              MOVEM.L        (A7)+,A2/A3/A5/A6        ;4cdf 6c00 
+              RTS                                     ;4e75 
+@AddClusterSender:
+;  237:}
+;  238:
+;  239:
+;  240:/*
+;  241:	CLSemaphore must have been obtained before calling.
+;  242:*/
+;  243:
+;  244:BOOL AddClusterSender(
+;  245:	struct MidiCluster *cluster,
+;  246:	struct Node *node,
+;  247:	ULONG *ErrorCode,
+;  248:	struct CamdBase *CamdBase
+;  249:){
+              SUBQ.W         #$4,A7                   ;594f 
+              MOVEM.L        A2/A3/A5/A6,-(A7)        ;48e7 0036 
+___AddClusterSender__1:
+              MOVE.L         A0,A5                    ;2a48 
+;  250:	struct MidiLink *midilink;
+;  251:	struct DriverData *driverdata;
+;  252:
+;  253:	if(node->ln_Type!=NT_USER-MLTYPE_NTypes){
+              MOVE.L         A1,A3                    ;2649 
+              MOVE.L         A1,$10(A7)               ;2f49 0010 
+              CMPI.B         #$fc,$8(A3)              ;0c2b 00fc 0008 
+              BEQ.B          ___AddClusterSender__16  ;675c 
+___AddClusterSender__2:
+;  254:		driverdata=FindReceiverDriverInCluster(cluster);
+              LEA            $10(A5),A0               ;41ed 0010 
+              MOVE.L         $18(A5),A1               ;226d 0018 
+              CMP.L          A0,A1                    ;b3c8 
+              BEQ.B          ___AddClusterSender__8   ;6718 
+___AddClusterSender__3:
+              MOVE.L         $10(A5),A3               ;266d 0010 
+              BRA.B          ___AddClusterSender__7   ;600e 
+___AddClusterSender__4:
+              CMPI.B         #$fc,$8(A3)              ;0c2b 00fc 0008 
+              BNE.B          ___AddClusterSender__6   ;6604 
+___AddClusterSender__5:
+              MOVE.L         A3,A2                    ;244b 
+              BRA.B          ___AddClusterSender__9   ;6008 
+___AddClusterSender__6:
+              MOVE.L         (A3),A3                  ;2653 
+___AddClusterSender__7:
+              TST.L          (A3)                     ;4a93 
+              BNE.B          ___AddClusterSender__4   ;66ee 
+___AddClusterSender__8:
+              SUB.L          A2,A2                    ;95ca 
+___AddClusterSender__9:
+;  255:		if(driverdata!=NULL){
+              MOVE.L         A2,D0                    ;200a 
+              BEQ.B          ___AddClusterSender__15  ;672a 
+___AddClusterSender__10:
+;  256:			if(driverdata->isInOpen==FALSE && driverdata->isOutOpen==FALSE){
+              TST.W          $34(A2)                  ;4a6a 0034 
+              BNE.B          ___AddClusterSender__15  ;6624 
+___AddClusterSender__11:
+              TST.W          $36(A2)                  ;4a6a 0036 
+              BNE.B          ___AddClusterSender__15  ;661e 
+___AddClusterSender__12:
+;  257:				if(OpenDriver(driverdata,ErrorCode,CamdBase)==FALSE){
+              MOVE.L         $1c(A7),-(A7)            ;2f2f 001c 
+              MOVE.L         A2,A0                    ;204a 
+              MOVE.L         $1c(A7),A1               ;226f 001c 
+              BSR.W          @OpenDriver              ;6100 0000 
+              ADDQ.W         #$4,A7                   ;584f 
+              TST.W          D0                       ;4a40 
+              BNE.B          ___AddClusterSender__14  ;6604 
+___AddClusterSender__13:
+;  258:					return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___AddClusterSender__17  ;6022 
+___AddClusterSender__14:
+;  259:				}
+;  260:				driverdata->isOutOpen=TRUE;
+              MOVE.W         #$1,$36(A2)              ;357c 0001 0036 
+___AddClusterSender__15:
+;  261:			}
+;  262:		}
+;  263:		midilink=(struct MidiLink *)node;
+              MOVE.L         $10(A7),A3               ;266f 0010 
+;  264:		midilink->ml_Location=cluster;
+              MOVE.L         A5,$1c(A3)               ;274d 001c 
+___AddClusterSender__16:
+;  265:	}
+;  266:
+;  267:	Enqueue(&cluster->mcl_Senders,node);
+              LEA            $1e(A5),A0               ;41ed 001e 
+              MOVE.L         A3,A1                    ;224b 
+              MOVE.L         $1c(A7),A6               ;2c6f 001c 
+              MOVE.L         $22(A6),A6               ;2c6e 0022 
+              JSR            $fffffef2(A6)            ;4eae fef2 
+;  268:	return TRUE;
+              MOVEQ.L        #$1,D0                   ;7001 
+___AddClusterSender__17:
+              MOVEM.L        (A7)+,A2/A3/A5/A6        ;4cdf 6c00 
+              ADDQ.W         #$4,A7                   ;584f 
+              RTS                                     ;4e75 
+@SetClusterForLink:
+;  269:}
+;  270:
+;  271:
+;  272:
+;  273:/*
+;  274:	CLSemaphore must have been obtained before calling.
+;  275:*/
+;  276:
+;  277:BOOL SetClusterForLink(
+;  278:		       struct MidiLink *midilink,
+;  279:		       char *name,
+;  280:		       ULONG *ErrorCode,
+;  281:		       struct CamdBase *CamdBase
+;  282:		       ){
+              SUBQ.W         #$8,A7                   ;514f 
+              MOVEM.L        D6/D7/A2/A3/A5/A6,-(A7)  ;48e7 0336 
+___SetClusterForLink__1:
+              MOVE.L         A1,A2                    ;2449 
+;  283:  struct MidiCluster *cluster;
+;  284:  ULONG type=midilink->ml_Node.ln_Type;
+              MOVE.L         A0,A3                    ;2648 
+              MOVEQ.L        #$0,D7                   ;7e00 
+              MOVE.B         $8(A3),D7                ;1e2b 0008 
+;  285:
+;  286:
+;  287:  UnlinkMidiLink(midilink,FALSE,CamdBase);
+              MOVE.L         $28(A7),A5               ;2a6f 0028 
+              MOVE.L         A0,$18(A7)               ;2f48 0018 
+              MOVE.L         A5,A1                    ;224d 
+              MOVEQ.L        #$0,D0                   ;7000 
+              BSR.W          @UnlinkMidiLink          ;6100 0000 
+;  288:
+;  289:  midilink->ml_Location=NULL;
+              CLR.L          $1c(A3)                  ;42ab 001c 
+;  290:
+;  291:
+;  292:  cluster=(struct MidiCluster *)FindName(&CB(CamdBase)->midiclusters,name);
+              LEA            $44(A5),A0               ;41ed 0044 
+              MOVE.L         A2,A1                    ;224a 
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              JSR            $fffffeec(A6)            ;4eae feec 
+              MOVE.L         D0,A3                    ;2640 
+;  293:
+;  294:  if(cluster==NULL){
+              TST.L          D0                       ;4a80 
+              BNE.W          ___SetClusterForLink__11 ;6600 00ac 
+___SetClusterForLink__2:
+;  295:
+;  296:    cluster=NewCluster(name,CamdBase);
+              MOVEQ.L        #$5e,D0                  ;705e 
+              MOVE.L         #$10001,D1               ;223c 0001 0001 
+              JSR            $ffffff3a(A6)            ;4eae ff3a 
+              MOVE.L         D0,A5                    ;2a40 
+              TST.L          D0                       ;4a80 
+              BNE.B          ___SetClusterForLink__4  ;6604 
+___SetClusterForLink__3:
+              SUB.L          A3,A3                    ;97cb 
+              BRA.B          ___SetClusterForLink__7  ;607c 
+___SetClusterForLink__4:
+              LEA            $30(A5),A0               ;41ed 0030 
+              MOVE.L         $28(A7),A3               ;266f 0028 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              JSR            $fffffdd2(A6)            ;4eae fdd2 
+              MOVE.L         A2,A0                    ;204a 
+              BSR.W          @mystrlen                ;6100 0000 
+              ADDQ.L         #$1,D0                   ;5280 
+              MOVEQ.L        #$1,D1                   ;7201 
+              JSR            $fffffd54(A6)            ;4eae fd54 
+              MOVE.L         D0,$a(A5)                ;2b40 000a 
+              BNE.B          ___SetClusterForLink__6  ;6610 
+___SetClusterForLink__5:
+              MOVE.L         A5,A1                    ;224d 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              MOVEQ.L        #$5e,D0                  ;705e 
+              JSR            $ffffff2e(A6)            ;4eae ff2e 
+              SUB.L          A3,A3                    ;97cb 
+              BRA.B          ___SetClusterForLink__7  ;6048 
+___SetClusterForLink__6:
+              MOVE.L         A2,-(A7)                 ;2f0a 
+              PEA            __MERGED(A4)             ;486c 0000 
+              MOVE.L         $a(A5),-(A7)             ;2f2d 000a 
+              MOVE.L         A3,-(A7)                 ;2f0b 
+              BSR.W          mysprintf                ;6100 0000 
+              LEA            $10(A7),A7               ;4fef 0010 
+              LEA            $10(A5),A0               ;41ed 0010 
+              MOVE.L         A0,$8(A0)                ;2148 0008 
+              CLR.L          $4(A0)                   ;42a8 0004 
+              LEA            $14(A5),A1               ;43ed 0014 
+              MOVE.L         A1,(A0)                  ;2089 
+              LEA            $1e(A5),A0               ;41ed 001e 
+              MOVE.L         A0,$8(A0)                ;2148 0008 
+              CLR.L          $4(A0)                   ;42a8 0004 
+              LEA            $22(A5),A1               ;43ed 0022 
+              MOVE.L         A1,(A0)                  ;2089 
+              LEA            $44(A3),A0               ;41eb 0044 
+              MOVE.L         A5,A1                    ;224d 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              JSR            $ffffff0a(A6)            ;4eae ff0a 
+              MOVE.L         A5,A3                    ;264d 
+___SetClusterForLink__7:
+;  297:
+;  298:    if(cluster==NULL){
+              MOVE.L         A3,D0                    ;200b 
+              BNE.B          ___SetClusterForLink__11 ;6614 
+___SetClusterForLink__8:
+;  299:      if(ErrorCode!=NULL){
+              MOVE.L         $24(A7),A0               ;206f 0024 
+              MOVE.L         A0,D0                    ;2008 
+              BEQ.B          ___SetClusterForLink__10 ;6706 
+___SetClusterForLink__9:
+;  300:	*ErrorCode=CME_NoMem;
+              MOVE.L         #$321,(A0)               ;20bc 0000 0321 
+___SetClusterForLink__10:
+;  301:      }
+;  302:      return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.W          ___SetClusterForLink__51 ;6000 0138 
+___SetClusterForLink__11:
+;  303:    }
+;  304:  }
+;  305:
+;  306:  if(type==NT_USER-MLTYPE_Receiver){
+              MOVE.L         $18(A7),A5               ;2a6f 0018 
+              MOVEQ.L        #$7f,D0                  ;707f 
+              ADD.L          D0,D0                    ;d080 
+              CMP.L          D0,D7                    ;be80 
+              BNE.W          ___SetClusterForLink__32 ;6600 00a8 
+___SetClusterForLink__12:
+;  307:
+;  308:    if(AddClusterReceiver(cluster,&midilink->ml_Node,ErrorCode,CamdBase)==FALSE){
+              MOVE.L         $28(A7),A2               ;246f 0028 
+              CMPI.B         #$fc,$8(A5)              ;0c2d 00fc 0008 
+              BEQ.B          ___SetClusterForLink__27 ;676a 
+___SetClusterForLink__13:
+              LEA            $1e(A3),A0               ;41eb 001e 
+              MOVE.L         $26(A3),A1               ;226b 0026 
+              CMP.L          A0,A1                    ;b3c8 
+              BEQ.B          ___SetClusterForLink__19 ;671a 
+___SetClusterForLink__14:
+              MOVE.L         $1e(A3),A5               ;2a6b 001e 
+              BRA.B          ___SetClusterForLink__18 ;6010 
+___SetClusterForLink__15:
+              CMPI.B         #$fc,$8(A5)              ;0c2d 00fc 0008 
+              BNE.B          ___SetClusterForLink__17 ;6606 
+___SetClusterForLink__16:
+              ADD.W          #$fffffff2,A5            ;dafc fff2 
+              BRA.B          ___SetClusterForLink__20 ;6008 
+___SetClusterForLink__17:
+              MOVE.L         (A5),A5                  ;2a55 
+___SetClusterForLink__18:
+              TST.L          (A5)                     ;4a95 
+              BNE.B          ___SetClusterForLink__15 ;66ec 
+___SetClusterForLink__19:
+              SUB.L          A5,A5                    ;9bcd 
+___SetClusterForLink__20:
+              MOVE.L         A5,D0                    ;200d 
+              BEQ.B          ___SetClusterForLink__26 ;6728 
+___SetClusterForLink__21:
+              TST.W          $34(A5)                  ;4a6d 0034 
+              BNE.B          ___SetClusterForLink__26 ;6622 
+___SetClusterForLink__22:
+              TST.W          $36(A5)                  ;4a6d 0036 
+              BNE.B          ___SetClusterForLink__26 ;661c 
+___SetClusterForLink__23:
+              MOVE.L         A2,-(A7)                 ;2f0a 
+              MOVE.L         A5,A0                    ;204d 
+              MOVE.L         $28(A7),A1               ;226f 0028 
+              BSR.W          @OpenDriver              ;6100 0000 
+              ADDQ.W         #$4,A7                   ;584f 
+              TST.W          D0                       ;4a40 
+              BNE.B          ___SetClusterForLink__25 ;6604 
+___SetClusterForLink__24:
+              MOVEQ.L        #$0,D6                   ;7c00 
+              BRA.B          ___SetClusterForLink__29 ;6040 
+___SetClusterForLink__25:
+              MOVE.W         #$1,$34(A5)              ;3b7c 0001 0034 
+___SetClusterForLink__26:
+              LEA            $30(A3),A0               ;41eb 0030 
+              MOVE.L         $22(A2),A6               ;2c6a 0022 
+              JSR            $fffffdcc(A6)            ;4eae fdcc 
+              MOVE.L         $18(A7),A5               ;2a6f 0018 
+              MOVE.L         A3,$1c(A5)               ;2b4b 001c 
+              BRA.B          ___SetClusterForLink__28 ;600c 
+___SetClusterForLink__27:
+              LEA            $30(A3),A0               ;41eb 0030 
+              MOVE.L         $22(A2),A6               ;2c6a 0022 
+              JSR            $fffffdcc(A6)            ;4eae fdcc 
+___SetClusterForLink__28:
+              LEA            $10(A3),A0               ;41eb 0010 
+              MOVE.L         A5,A1                    ;224d 
+              MOVE.L         $22(A2),A6               ;2c6a 0022 
+              JSR            $fffffef2(A6)            ;4eae fef2 
+              LEA            $30(A3),A0               ;41eb 0030 
+              JSR            $fffffdc6(A6)            ;4eae fdc6 
+              MOVEQ.L        #$1,D6                   ;7c01 
+___SetClusterForLink__29:
+              TST.W          D6                       ;4a46 
+              BNE.W          ___SetClusterForLink__50 ;6600 0088 
+___SetClusterForLink__30:
+;  309:      return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.W          ___SetClusterForLink__51 ;6000 0084 
+___SetClusterForLink__31:
+___SetClusterForLink__32:
+;  310:    }
+;  311:  }else{
+;  312:
+;  313:    if(AddClusterSender(cluster,&midilink->ml_Node,ErrorCode,CamdBase)==FALSE){
+              CMPI.B         #$fc,$8(A5)              ;0c2d 00fc 0008 
+              BEQ.B          ___SetClusterForLink__47 ;675c 
+___SetClusterForLink__33:
+              LEA            $10(A3),A0               ;41eb 0010 
+              MOVE.L         $18(A3),A1               ;226b 0018 
+              CMP.L          A0,A1                    ;b3c8 
+              BEQ.B          ___SetClusterForLink__39 ;6718 
+___SetClusterForLink__34:
+              MOVE.L         $10(A3),A5               ;2a6b 0010 
+              BRA.B          ___SetClusterForLink__38 ;600e 
+___SetClusterForLink__35:
+              CMPI.B         #$fc,$8(A5)              ;0c2d 00fc 0008 
+              BNE.B          ___SetClusterForLink__37 ;6604 
+___SetClusterForLink__36:
+              MOVE.L         A5,A2                    ;244d 
+              BRA.B          ___SetClusterForLink__40 ;6008 
+___SetClusterForLink__37:
+              MOVE.L         (A5),A5                  ;2a55 
+___SetClusterForLink__38:
+              TST.L          (A5)                     ;4a95 
+              BNE.B          ___SetClusterForLink__35 ;66ee 
+___SetClusterForLink__39:
+              SUB.L          A2,A2                    ;95ca 
+___SetClusterForLink__40:
+              MOVE.L         A2,D0                    ;200a 
+              BEQ.B          ___SetClusterForLink__46 ;672a 
+___SetClusterForLink__41:
+              TST.W          $34(A2)                  ;4a6a 0034 
+              BNE.B          ___SetClusterForLink__46 ;6624 
+___SetClusterForLink__42:
+              TST.W          $36(A2)                  ;4a6a 0036 
+              BNE.B          ___SetClusterForLink__46 ;661e 
+___SetClusterForLink__43:
+              MOVE.L         $28(A7),-(A7)            ;2f2f 0028 
+              MOVE.L         A2,A0                    ;204a 
+              MOVE.L         $28(A7),A1               ;226f 0028 
+              BSR.W          @OpenDriver              ;6100 0000 
+              ADDQ.W         #$4,A7                   ;584f 
+              TST.W          D0                       ;4a40 
+              BNE.B          ___SetClusterForLink__45 ;6604 
+___SetClusterForLink__44:
+              MOVEQ.L        #$0,D6                   ;7c00 
+              BRA.B          ___SetClusterForLink__48 ;6022 
+___SetClusterForLink__45:
+              MOVE.W         #$1,$36(A2)              ;357c 0001 0036 
+___SetClusterForLink__46:
+              MOVE.L         $18(A7),A5               ;2a6f 0018 
+              MOVE.L         A3,$1c(A5)               ;2b4b 001c 
+___SetClusterForLink__47:
+              LEA            $1e(A3),A0               ;41eb 001e 
+              MOVE.L         A5,A1                    ;224d 
+              MOVE.L         $28(A7),A6               ;2c6f 0028 
+              MOVE.L         $22(A6),A6               ;2c6e 0022 
+              JSR            $fffffef2(A6)            ;4eae fef2 
+              MOVEQ.L        #$1,D6                   ;7c01 
+___SetClusterForLink__48:
+              TST.W          D6                       ;4a46 
+              BNE.B          ___SetClusterForLink__50 ;6604 
+___SetClusterForLink__49:
+;  314:      return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              DC.W           $c40                     ;0c40 
+___SetClusterForLink__50:
+;  315:    }
+;  316:  }
+;  317:
+;  318:  return TRUE;
+              MOVEQ.L        #$1,D0                   ;7001 
+___SetClusterForLink__51:
+              MOVEM.L        (A7)+,D6/D7/A2/A3/A5/A6  ;4cdf 6cc0 
+              ADDQ.W         #$8,A7                   ;504f 
+              RTS                                     ;4e75 
+              XREF           @CloseDriver
+              XREF           @mystrlen
+              XREF           mysprintf
+              XREF           @OpenDriver
+              XREF           @UnlinkMidiLink
+              XDEF           @RemoveCluster
+              XDEF           @LinkHasBeenRemovedFromCluster
+              XDEF           @NewCluster
+              XDEF           @FindReceiverDriverInCluster
+              XDEF           @FindSenderDriverInCluster
+              XDEF           @AddClusterReceiver
+              XDEF           @AddClusterSender
+              XDEF           @SetClusterForLink
+
+              SECTION        __MERGED,DATA
+__MERGED
+              DC.B           '%s'
+              DC.B           $00
+              DC.B           $00
+              END

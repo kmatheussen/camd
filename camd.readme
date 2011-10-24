@@ -1,0 +1,133 @@
+
+
+Camd.library V40.5.
+For AmigaOS and AROS.
+
+Released 2002-04-26
+
+
+
+BACKGROUND
+	-Due to various problems with the original camd.library,
+	 and that AROS (http://www.aros.org) didn`t have a
+	 camd.library, I wrote a new one (from scratch).
+
+
+
+FEATURES
+	-It is supposed to work just like the old one, and as
+	 far as I can see, it really does too. Still, you
+	 should backup the old camd.library before replacing,
+	 just in case. Programs tested and works fine:
+	 BarsnPipes, Radium, CAMD ToolKit. Programs tested and not
+	 working fine: noone. Please send me programs that
+	 isnt working with the new camd.library. Probably they
+	 have just hardcoded out.0, in.0, etc. That can be solved.
+
+	-Whether its better or worse than the old one remains to
+	 be seen. But this one is at least open source, so things
+	 can be fixed if something isn`t working.
+ 
+	-This version of the camd does also has a new
+	 driver format, while still supporting the old
+	 strange one.
+
+
+
+LICENCE
+	-The license for the source is APL, the Aros Public License,
+	 which is based on MPL (Mozilla Public License).
+	 Check out http://www.aros.org for more info about it.
+
+
+
+DEVELOPMENT
+	-To get the include files for this camd.library, you need
+	 to get the AROS source. Or you can mail me, and I`ll send
+	 them to you. Unfortunately, they was not available to me
+	 when making this package. The same goes for the documentation
+	 about the new driver-format.
+
+
+
+USAGE / DIFFERENCE BETWEEN OLD AND NEW
+
+	-The "MidiPorts" preferences program has no function
+	 anymore (it was terrible buggy anyway). Which means:
+   -Only copy the drivers you _use_ into devs:midi/
+   -Dont have more than one type of driver for the same
+    hardware in devs:midi/. Ie, don`t have both mmp and
+    uaemidi (which both uses the serial-port), for example.
+
+	-The new camd.library does not have a built-in driver
+	 for the serial-port. Just use mmp/port 0 instead. It
+	 should be more stable than the old internal driver too.
+
+	-out.0, out.1, out.2, in.0, in.1, etc. does not exist
+	 anymore. The links will have the names <drivername>.out.0,
+	 <drivername>.out.1, <drivername>.in.0, etc. instead.
+
+	-For some reason, the prelude and concertio camd-drivers
+	 does not work with this version of camd.library. To
+	 work around the problem, I have made a package called
+	 "camo", which should make non-making drivers still
+	 work with the new camd.library by using a hacked version
+	 of the old camd.library and preferences program that
+	 communicates with the new camd.library. I don`t know
+	 how good it works though, but I have got a report that
+	 it does work.
+
+
+COMPILING
+	The amiga version is compiled with SAS/C. Just write
+	smake. To compile with other compilers, some tricks
+	has to be done in the file "miditodriver_oldformat.c"
+	to support return value in D1.
+
+	There are three ways this can be solved:
+		1. Write an assembler stub for the "transmitter"
+		   function that calles the "transmitter" function
+		   in "miditodriver.c", and make the "transmitter"
+		   function return a number higher than 0x100 when
+		   0xff has to be put in d1. Remember to point
+		   "Transmitter" to your asm function in the "OpenPort"-
+		   call in the file "drivers.c"
+		2. Use inline assembly in the "transmitter" function in
+		   "miditodriver_oldformat.c" to return in D1.
+		3. Use 64 bit (in D0/D1) return value if
+		   supperted by your compiler for the "transmitter" function.
+
+	Apart from that, using a different compiler
+	shouldn`t be a big problem. (see include/libcore/compiler.h)
+
+
+
+
+HISTORY
+	V40.5:	Receiving several sysex in a row didn`t work. Fixed.
+	      	Sending two or more Program Change or Channel Pressure
+	      	messages with the same status-byte to hardware caused
+	      	an infinite loop. Fixed.
+	V40.4:   GetMidiLinkAttrs didn`t work. Fixed.
+	V40.3:   Freezed when calling ParseMidi to a link connected to
+            hardware, and the buffer contained (an) error(s).
+            Fixed.
+	V40.2:	Fixed SysEx output.
+	V40.1:	First public amiga release
+
+
+
+CREDITS / CONTACT
+	-Kjetil S. Matheussen, 8.9.2k2
+	 k.s.matheussen@notam02.no
+	 http://www.stud.ifi.uio.no/~ksvalast/nsm/
+
+	Camd.library V37 and earlier was made for commodore
+	by various people. This version of camd.library
+	is not based that version, and its not at all an official
+	new release of camd.library from Amiga inc. or H&P.
+
+
+
+
+

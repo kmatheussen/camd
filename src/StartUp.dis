@@ -1,0 +1,541 @@
+              SECTION      text,CODE
+__code:
+LibStart:
+___LibStart__1:
+;    1:/*
+;    2:**      $VER: StartUp.c 37.32 (15.5.98)
+;    3:**
+;    4:**      Library startup-code and function table definition
+;    5:**
+;    6:**      (C) Copyright 1996-98 Andreas R. Kleinert
+;    7:**      All Rights Reserved.
+;    8:*/
+;    9:
+;   10:#define __USE_SYSBASE        // perhaps only recognized by SAS/C
+;   11:
+;   12:#include <exec/types.h>
+;   13:#include <exec/memory.h>
+;   14:#include <exec/libraries.h>
+;   15:#include <exec/execbase.h>
+;   16:#include <exec/resident.h>
+;   17:#include <exec/initializers.h>
+;   18:
+;   19:#ifdef __MAXON__
+;   20:#include <pragma/exec_lib.h>
+;   21:#include <linkerfunc.h>
+;   22:#else
+;   23:#include <proto/exec.h>    // all other compilers
+;   24:#endif
+;   25:
+;   26:#include <proto/dos.h>
+;   27:#include <proto/utility.h>
+;   28:
+;   29:#define SEGLISTPTR BPTR
+;   30:
+;   31:#include <libcore/compiler.h>
+;   32:#include "libdefs.h"
+;   33:
+;   34:#include "camd_intern.h"
+;   35:
+;   36:extern ULONG __saveds __stdargs L_OpenLibs(struct LIBBASE *LIBBASE);
+;   37:extern void  __saveds __stdargs L_CloseLibs(void);
+;   38:
+;   39:struct LIBBASE * __saveds ASM InitLib(register __a6 struct ExecBase *sysbase GNUCREG(a6),
+;   40:                                      register __a0 SEGLISTPTR      seglist  GNUCREG(a0),
+;   41:                                      register __d0 struct LIBBASE  *exb     GNUCREG(d0));
+;   42:struct LIBBASE * __saveds ASM OpenLib(register __a6 struct LIBBASE  *LIBBASE GNUCREG(a6));
+;   43:SEGLISTPTR __saveds ASM CloseLib(register __a6 struct LIBBASE *LIBBASE GNUCREG(a6));
+;   44:SEGLISTPTR __saveds ASM ExpungeLib(register __a6 struct LIBBASE *exb GNUCREG(a6));
+;   45:ULONG ASM ExtFuncLib(void);
+;   46:
+;   47:
+;   48:/* ------------------------------------------------------------------------
+;   49:   ! LibStart:
+;   50:   !
+;   51:   ! If someone tries to start a library as an executable, it must return
+;   52:   ! (LONG) -1 as result. That's what we are doing here.
+;   53:   ------------------------------------------------------------------------
+;   54:*/
+;   55:
+;   56:LONG ASM LibStart(void)
+;   57:{
+;   58:    return(-1);
+              MOVEQ.L        #$ff,D0                  ;70ff 
+___LibStart__2:
+              RTS                                     ;4e75 
+__const:
+__strings:
+InitLib:
+;   59:}
+;   60:
+;   61:
+;   62:/* ------------------------------------------------------------------------
+;   63:   ! Function and Data Tables:
+;   64:   !
+;   65:   ! The function and data tables have been placed here for traditional
+;   66:   ! reasons. Placing the RomTag structure before (-> LibInit.c) would also
+;   67:   ! be a good idea, but it depends on whether you would like to keep the
+;   68:   ! "version" stuff separately.
+;   69:   ------------------------------------------------------------------------
+;   70:*/
+;   71:
+;   72:extern APTR FuncTab [];
+;   73:/*  extern struct MyDataInit DataTab;  */
+;   74:extern DataTab; /* DICE fix */
+;   75:                   /* Instead you may place ROMTag + Datatab directly, here */
+;   76:                   /* (see LibInit.c). This may fix "Installer" version     */
+;   77:                   /* checking problems, too - try it.                      */
+;   78:
+;   79:struct InitTable                       /* do not change */
+;   80:{
+;   81:    ULONG              LibBaseSize;
+;   82:    APTR              *FunctionTable;
+;   83:    struct MyDataInit *DataTable;
+;   84:    APTR               InitLibTable;
+;   85:} InitTab =
+;   86:{
+;   87:    (ULONG)               sizeof(struct LIBBASE),
+;   88:    (APTR              *) &FuncTab[0],
+;   89:    (struct MyDataInit *) &DataTab,
+;   90:    (APTR)                InitLib
+;   91:};
+;   92:
+;   93:
+;   94:#include "FunctionTable.h"
+;   95:
+;   96:extern struct LIBBASE *LIBBASE;
+;   97:
+;   98:/* ------------------------------------------------------------------------
+;   99:   ! InitLib:
+;  100:   !
+;  101:   ! This one is single-threaded by the Ramlib process. Theoretically you
+;  102:   ! can do, what you like here, since you have full exclusive control over
+;  103:   ! all the library code and data. But due to some bugs in Ramlib V37-40,
+;  104:   ! you can easily cause a deadlock when opening certain libraries here
+;  105:   ! (which open other libraries, that open other libraries, that...)
+;  106:   ------------------------------------------------------------------------
+;  107:*/
+;  108:
+;  109:
+;  110:struct LIBBASE * __saveds ASM InitLib(register __a6 struct ExecBase *sysbase GNUCREG(a6),
+;  111:                                      register __a0 SEGLISTPTR      seglist  GNUCREG(a0),
+;  112:                                      register __d0 struct LIBBASE  *exb     GNUCREG(d0))
+              MOVEM.L        A4/A6,-(A7)              ;48e7 000a 
+___InitLib__1:
+              MOVE.L         A0,D1                    ;2208 
+              MOVE.L         D0,A0                    ;2040 
+              LEA            (LinkerDB).l,A4          ;49f9 0000 0000 
+;  113:{
+;  114:#undef SysBase
+;  115:
+;  116:	SysBase=sysbase;
+              MOVE.L         A6,SysBase(A4)           ;294e 0000 
+;  117:
+;  118:    LIBBASE = exb;
+              MOVE.L         A0,__MERGED+$d0(A4)      ;2948 00d0 
+;  119:
+;  120:    LIBBASE->sysbase = sysbase;
+              MOVE.L         A6,$22(A0)               ;214e 0022 
+;  121:    LIBBASE->seglist = seglist;
+              MOVE.L         __MERGED+$d0(A4),A0      ;206c 00d0 
+              MOVE.L         D1,$26(A0)               ;2141 0026 
+;  122:
+;  123://	return(LIBBASE);
+;  124:
+;  125:	LIBBASE->utilitybase=OpenLibrary("utility.library", 37);
+              LEA            __MERGED+$b4(A4),A1      ;43ec 00b4 
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              MOVEQ.L        #$25,D0                  ;7025 
+              JSR            $fffffdd8(A6)            ;4eae fdd8 
+              MOVE.L         __MERGED+$d0(A4),A0      ;206c 00d0 
+              MOVE.L         D0,$2a(A0)               ;2140 002a 
+;  126:
+;  127:    if (!LIBBASE->utilitybase)
+              BNE.B          ___InitLib__3            ;6604 
+___InitLib__2:
+;  128:        return NULL;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___InitLib__8            ;603a 
+___InitLib__3:
+;  129:
+;  130:	LIBBASE->dosbase=OpenLibrary("dos.library", 37);
+              LEA            __MERGED+$c4(A4),A1      ;43ec 00c4 
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              MOVEQ.L        #$25,D0                  ;7025 
+              JSR            $fffffdd8(A6)            ;4eae fdd8 
+              MOVE.L         __MERGED+$d0(A4),A0      ;206c 00d0 
+              MOVE.L         D0,$2e(A0)               ;2140 002e 
+;  131:
+;  132:    if (!LIBBASE->dosbase)
+              BNE.B          ___InitLib__5            ;6604 
+___InitLib__4:
+;  133:        return NULL;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___InitLib__8            ;601e 
+___InitLib__5:
+;  134:
+;  135:#undef DosBase
+;  136:#undef DOSBase
+;  137:	DOSBase=LIBBASE->dosbase;
+              MOVE.L         D0,__MERGED+$d4(A4)      ;2940 00d4 
+;  138:#undef UtilityBase
+;  139:	UtilityBase=LIBBASE->utilitybase;
+              MOVE.L         __MERGED+$d0(A4),A0      ;206c 00d0 
+              MOVE.L         $2a(A0),__MERGED+$d8(A4) ;2968 002a 00d8 
+;  140:
+;  141:	if(InitCamd((struct CamdBase *)LIBBASE)==FALSE){
+              BSR.W          @InitCamd                ;6100 0000 
+              TST.W          D0                       ;4a40 
+              BNE.B          ___InitLib__7            ;6604 
+___InitLib__6:
+;  142:		return NULL;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___InitLib__8            ;6004 
+___InitLib__7:
+;  143:	}
+;  144:
+;  145:	return(LIBBASE);
+              MOVE.L         __MERGED+$d0(A4),D0      ;202c 00d0 
+___InitLib__8:
+              MOVEM.L        (A7)+,A4/A6              ;4cdf 5000 
+              RTS                                     ;4e75 
+OpenLib:
+;  146:
+;  147:}
+;  148:
+;  149:/* ------------------------------------------------------------------------
+;  150:   ! OpenLib:
+;  151:   !
+;  152:   ! This one is enclosed within a Forbid/Permit pair by Exec V37-40. Since
+;  153:   ! a Wait() call would break this Forbid/Permit(), you are not allowed to
+;  154:   ! start any operations that may cause a Wait() during their processing.
+;  155:   ! It's possible, that future OS versions won't turn the multi-tasking
+;  156:   ! off, but instead use semaphore protection for this  function.
+;  157:   !
+;  158:   ! Currently you only can bypass this restriction by supplying your own
+;  159:   ! semaphore mechanism.
+;  160:   ------------------------------------------------------------------------
+;  161:*/
+;  162:
+;  163:struct LIBBASE * __saveds ASM OpenLib(register __a6 struct LIBBASE *LIBBASE GNUCREG(a6))
+              MOVE.L         A4,-(A7)                 ;2f0c 
+___OpenLib__1:
+              LEA            (LinkerDB).l,A4          ;49f9 0000 0000 
+;  164:{
+;  165:    #ifdef __MAXON__
+;  166:    GetBaseReg();
+;  167:    InitModules();
+;  168:    #endif
+;  169:
+;  170:    LIBBASE->library.lib_OpenCnt++;
+              ADDQ.W         #$1,$20(A6)              ;526e 0020 
+;  171:
+;  172:    LIBBASE->library.lib_Flags &= ~LIBF_DELEXP;
+              BCLR           #$3,$e(A6)               ;08ae 0003 000e 
+;  173:
+;  174:    return(LIBBASE);
+              MOVE.L         A6,D0                    ;200e 
+___OpenLib__2:
+              MOVE.L         (A7)+,A4                 ;285f 
+              RTS                                     ;4e75 
+CloseLib:
+;  175:}
+;  176:
+;  177:/* ------------------------------------------------------------------------
+;  178:   ! CloseLib:
+;  179:   !
+;  180:   ! This one is enclosed within a Forbid/Permit pair by Exec V37-40. Since
+;  181:   ! a Wait() call would break this Forbid/Permit(), you are not allowed to
+;  182:   ! start any operations that may cause a Wait() during their processing.
+;  183:   ! It's possible, that future OS versions won't turn the multi-tasking
+;  184:   ! off, but instead use semaphore protection for this function.
+;  185:   !
+;  186:   ! Currently you only can bypass this restriction by supplying your own
+;  187:   ! semaphore mechanism.
+;  188:   ------------------------------------------------------------------------
+;  189:*/
+;  190:
+;  191:SEGLISTPTR __saveds ASM CloseLib(register __a6 struct LIBBASE *LIBBASE GNUCREG(a6))
+              MOVE.L         A4,-(A7)                 ;2f0c 
+___CloseLib__1:
+              LEA            (LinkerDB).l,A4          ;49f9 0000 0000 
+;  192:{
+;  193:    LIBBASE->library.lib_OpenCnt--;
+              SUBQ.W         #$1,$20(A6)              ;536e 0020 
+;  194:
+;  195:    if(!LIBBASE->library.lib_OpenCnt)
+              BNE.B          ___CloseLib__5           ;660e 
+___CloseLib__2:
+;  196:    {
+;  197:        if(LIBBASE->library.lib_Flags & LIBF_DELEXP)
+              BTST           #$3,$e(A6)               ;082e 0003 000e 
+              BEQ.B          ___CloseLib__5           ;6706 
+___CloseLib__3:
+;  198:        {
+;  199:            return( ExpungeLib(LIBBASE) );
+              BSR.W          ExpungeLib               ;6100 0000 
+___CloseLib__4:
+              DC.W           $c40                     ;0c40 
+___CloseLib__5:
+;  200:        }
+;  201:    }
+;  202:
+;  203:    return(NULL);
+              MOVEQ.L        #$0,D0                   ;7000 
+___CloseLib__6:
+              MOVE.L         (A7)+,A4                 ;285f 
+              RTS                                     ;4e75 
+ExpungeLib:
+;  204:}
+;  205:
+;  206:/* ------------------------------------------------------------------------
+;  207:   ! ExpungeLib:
+;  208:   !
+;  209:   ! This one is enclosed within a Forbid/Permit pair by Exec V37-40. Since
+;  210:   ! a Wait() call would break this Forbid/Permit(), you are not allowed to
+;  211:   ! start any operations that may cause a Wait() during their processing.
+;  212:   ! It's possible, that future OS versions won't turn the multi-tasking
+;  213:   ! off, but instead use semaphore protection for this function.
+;  214:   !
+;  215:   ! Currently you only could bypass this restriction by supplying your own
+;  216:   ! semaphore mechanism - but since expunging can't be done twice, one
+;  217:   ! should avoid it here.
+;  218:   ------------------------------------------------------------------------
+;  219:*/
+;  220:
+;  221:SEGLISTPTR __saveds ASM ExpungeLib(register __a6 struct LIBBASE *exb GNUCREG(a6))
+              MOVEM.L        D7/A4/A5/A6,-(A7)        ;48e7 010e 
+___ExpungeLib__1:
+              MOVE.L         A6,A5                    ;2a4e 
+              LEA            (LinkerDB).l,A4          ;49f9 0000 0000 
+;  222:{
+;  223:    struct LIBBASE *LIBBASE = exb;
+;  224:    SEGLISTPTR seglist;
+;  225:
+;  226:    if(!LIBBASE->library.lib_OpenCnt)
+              TST.W          $20(A5)                  ;4a6d 0020 
+              BNE.B          ___ExpungeLib__7         ;6656 
+___ExpungeLib__2:
+;  227:    {
+;  228:        ULONG negsize, possize, fullsize;
+;  229:        UBYTE *negptr = (UBYTE *) LIBBASE;
+;  230:
+;  231:        seglist = LIBBASE->seglist;
+              MOVE.L         $26(A5),D7               ;2e2d 0026 
+;  232:
+;  233:			UninitCamd((struct CamdBase *)LIBBASE);
+              MOVE.L         A5,A0                    ;204d 
+              BSR.W          @UninitCamd              ;6100 0000 
+;  234:
+;  235:        Remove((struct Node *)LIBBASE);
+              MOVE.L         A5,A1                    ;224d 
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $ffffff04(A6)            ;4eae ff04 
+;  236:
+;  237:	    if(LIBBASE->utilitybase==NULL){
+              MOVE.L         $2a(A5),D0               ;202d 002a 
+              BNE.B          ___ExpungeLib__4         ;660a 
+___ExpungeLib__3:
+;  238:		    CloseLibrary((struct Library *)LIBBASE->utilitybase);
+              MOVE.L         D0,A1                    ;2240 
+              JSR            $fffffe62(A6)            ;4eae fe62 
+;  239:		    LIBBASE->utilitybase = NULL;
+              CLR.L          $2a(A5)                  ;42ad 002a 
+___ExpungeLib__4:
+;  240:	    }
+;  241:
+;  242:	    if(LIBBASE->dosbase==NULL){
+              MOVE.L         $2e(A5),D0               ;202d 002e 
+              BNE.B          ___ExpungeLib__6         ;660e 
+___ExpungeLib__5:
+;  243:		    CloseLibrary((struct Library *)LIBBASE->dosbase);
+              MOVE.L         D0,A1                    ;2240 
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $fffffe62(A6)            ;4eae fe62 
+;  244:		    LIBBASE->dosbase = NULL;
+              CLR.L          $2e(A5)                  ;42ad 002e 
+___ExpungeLib__6:
+;  245:	    }
+;  246:
+;  247:        negsize  = LIBBASE->library.lib_NegSize;
+;  248:        possize  = LIBBASE->library.lib_PosSize;
+              MOVEQ.L        #$0,D0                   ;7000 
+              MOVE.W         $12(A5),D0               ;302d 0012 
+              MOVEQ.L        #$0,D1                   ;7200 
+              MOVE.W         $10(A5),D1               ;322d 0010 
+;  249:        fullsize = negsize + possize;
+              ADD.L          D1,D0                    ;d081 
+;  250:        negptr  -= negsize;
+              MOVE.L         A5,A1                    ;224d 
+              SUB.L          D1,A1                    ;93c1 
+;  251:
+;  252:        FreeMem(negptr, fullsize);
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $ffffff2e(A6)            ;4eae ff2e 
+;  253:
+;  254:        #ifdef __MAXON__
+;  255:        CleanupModules();
+;  256:        #endif
+;  257:
+;  258:        return(seglist);
+              MOVE.L         D7,D0                    ;2007 
+              BRA.B          ___ExpungeLib__8         ;6008 
+___ExpungeLib__7:
+;  259:    }
+;  260:
+;  261:    LIBBASE->library.lib_Flags |= LIBF_DELEXP;
+              BSET           #$3,$e(A5)               ;08ed 0003 000e 
+;  262:
+;  263:    return(NULL);
+              MOVEQ.L        #$0,D0                   ;7000 
+___ExpungeLib__8:
+              MOVEM.L        (A7)+,D7/A4/A5/A6        ;4cdf 7080 
+              RTS                                     ;4e75 
+ExtFuncLib:
+___ExtFuncLib__1:
+;  264:}
+;  265:
+;  266:/* ------------------------------------------------------------------------
+;  267:   ! ExtFunct:
+;  268:   !
+;  269:   ! This one is enclosed within a Forbid/Permit pair by Exec V37-40. Since
+;  270:   ! a Wait() call would break this Forbid/Permit(), you are not allowed to
+;  271:   ! start any operations that may cause a Wait() during their processing.
+;  272:   ! It's possible, that future OS versions won't turn the multi-tasking
+;  273:   ! off, but instead use semaphore protection for this function.
+;  274:   !
+;  275:   ! Currently you only can bypass this restriction by supplying your own
+;  276:   ! semaphore mechanism - but since this function currently is unused, you
+;  277:   ! should not touch it, either.
+;  278:   ------------------------------------------------------------------------
+;  279:*/
+;  280:
+;  281:ULONG ASM ExtFuncLib(void)
+;  282:{
+;  283:    return(NULL);
+              MOVEQ.L        #$0,D0                   ;7000 
+___ExtFuncLib__2:
+              RTS                                     ;4e75 
+@__chkabort:
+_____chkabort__1:
+_____chkabort__2:
+              RTS                                     ;4e75 
+@_CXBRK:
+____CXBRK__1:
+____CXBRK__2:
+              RTS                                     ;4e75 
+              XREF           LinkerDB
+              XREF           SysBase
+              XREF           @InitCamd
+              XREF           @UninitCamd
+              XDEF           LibStart
+              XDEF           InitLib
+              XDEF           OpenLib
+              XDEF           CloseLib
+              XDEF           ExpungeLib
+              XDEF           ExtFuncLib
+              XDEF           @__chkabort
+              XDEF           @_CXBRK
+
+              SECTION        __MERGED,DATA
+__MERGED
+InitTab:
+              DC.L           $00000056
+              DC.L           __MERGED+10
+              DC.L           DataTab
+              DC.L           InitLib
+FuncTab:
+              DC.L           OpenLib
+              DC.L           CloseLib
+              DC.L           ExpungeLib
+              DC.L           ExtFuncLib
+              DC.L           CamdLockCAMD
+              DC.L           CamdUnlockCAMD
+              DC.L           CamdCreateMidiA
+              DC.L           CamdDeleteMidi
+              DC.L           CamdSetMidiAttrsA
+              DC.L           CamdGetMidiAttrsA
+              DC.L           CamdNextMidi
+              DC.L           CamdFindMidi
+              DC.L           CamdFlushMidi
+              DC.L           CamdAddMidiLinkA
+              DC.L           CamdRemoveMidiLink
+              DC.L           CamdSetMidiLinkAttrsA
+              DC.L           CamdGetMidiLinkAttrsA
+              DC.L           CamdNextClusterLink
+              DC.L           CamdNextMidiLink
+              DC.L           CamdMidiLinkConnected
+              DC.L           CamdNextCluster
+              DC.L           CamdFindCluster
+              DC.L           CamdPutMidi
+              DC.L           CamdGetMidi
+              DC.L           CamdWaitMidi
+              DC.L           CamdPutSysEx
+              DC.L           CamdGetSysEx
+              DC.L           CamdQuerySysEx
+              DC.L           CamdSkipSysEx
+              DC.L           CamdGetMidiErr
+              DC.L           CamdMidiMsgType
+              DC.L           CamdMidiMsgLen
+              DC.L           CamdParseMidi
+              DC.L           CamdOpenMidiDevice
+              DC.L           CamdCloseMidiDevice
+              DC.L           CamdRethinkCAMD
+              DC.L           CamdStartClusterNotify
+              DC.L           CamdEndClusterNotify
+              DC.L           CamdGoodPutMidi
+              DC.L           CamdMidi2Driver
+              DC.L           $FFFFFFFF
+              DC.B           'utility.library'
+              DC.B           $00
+              DC.B           'dos.library'
+              DC.B           $00
+CamdBase_intern:
+              DC.L           $00000000
+DOSBase:
+              DC.L           $00000000
+UtilityBase:
+              DC.L           $00000000
+              XREF           DataTab
+              XREF           CamdLockCAMD
+              XREF           CamdUnlockCAMD
+              XREF           CamdCreateMidiA
+              XREF           CamdDeleteMidi
+              XREF           CamdSetMidiAttrsA
+              XREF           CamdGetMidiAttrsA
+              XREF           CamdNextMidi
+              XREF           CamdFindMidi
+              XREF           CamdFlushMidi
+              XREF           CamdAddMidiLinkA
+              XREF           CamdRemoveMidiLink
+              XREF           CamdSetMidiLinkAttrsA
+              XREF           CamdGetMidiLinkAttrsA
+              XREF           CamdNextClusterLink
+              XREF           CamdNextMidiLink
+              XREF           CamdMidiLinkConnected
+              XREF           CamdNextCluster
+              XREF           CamdFindCluster
+              XREF           CamdPutMidi
+              XREF           CamdGetMidi
+              XREF           CamdWaitMidi
+              XREF           CamdPutSysEx
+              XREF           CamdGetSysEx
+              XREF           CamdQuerySysEx
+              XREF           CamdSkipSysEx
+              XREF           CamdGetMidiErr
+              XREF           CamdMidiMsgType
+              XREF           CamdMidiMsgLen
+              XREF           CamdParseMidi
+              XREF           CamdOpenMidiDevice
+              XREF           CamdCloseMidiDevice
+              XREF           CamdRethinkCAMD
+              XREF           CamdStartClusterNotify
+              XREF           CamdEndClusterNotify
+              XREF           CamdGoodPutMidi
+              XREF           CamdMidi2Driver
+              XDEF           InitTab
+              XDEF           FuncTab
+              XDEF           CamdBase_intern
+              XDEF           DOSBase
+              XDEF           UtilityBase
+              END

@@ -1,0 +1,729 @@
+              SECTION      text,CODE
+__code:
+@OpenDriver:
+;    1:/*
+;    2:    (C) 2001 AROS - The Amiga Research OS
+;    3:    $Id: drivers.c,v 1.5 2001/01/22 00:43:31 ksvalast Exp $
+;    4:
+;    5:    Desc:
+;    6:    Lang: English
+;    7:*/
+;    8:
+;    9:#include <proto/exec.h>
+;   10:#include <proto/dos.h>
+;   11:#include <proto/camd.h>
+;   12:
+;   13:#include "camd_intern.h"
+;   14:
+;   15:#  undef DEBUG
+;   16:#  define DEBUG 1
+;   17:#  include AROS_DEBUG_H_FILE
+;   18:
+;   19:BOOL OpenDriver(struct DriverData *driverdata,ULONG *ErrorCode,struct CamdBase *CamdBase){
+              SUBQ.W         #$8,A7                   ;514f 
+              MOVEM.L        A2/A3/A5/A6,-(A7)        ;48e7 0036 
+___OpenDriver__1:
+              MOVE.L         $1c(A7),A2               ;246f 001c 
+              MOVE.L         A1,A3                    ;2649 
+              MOVE.L         A0,A5                    ;2a48 
+;   20:	if(
+;   21:		CreateReceiverProc(
+;   22:			driverdata,
+              MOVE.L         $2c(A5),A0               ;206d 002c 
+;   23:			driverdata->mididevicedata->Name,
+;   24:			driverdata->portnum,
+;   25:			ErrorCode,
+;   26:			CamdBase
+;   27:		)==FALSE
+              MOVE.L         A2,-(A7)                 ;2f0a 
+              MOVE.L         A3,-(A7)                 ;2f0b 
+              MOVE.L         A0,$18(A7)               ;2f48 0018 
+              MOVE.L         $30(A5),D0               ;202d 0030 
+              MOVE.L         A5,A0                    ;204d 
+              MOVE.L         $18(A7),A1               ;226f 0018 
+              MOVE.L         $4(A1),A1                ;2269 0004 
+              BSR.W          @CreateReceiverProc      ;6100 0000 
+              ADDQ.W         #$8,A7                   ;504f 
+              TST.W          D0                       ;4a40 
+              BNE.B          ___OpenDriver__3         ;6604 
+___OpenDriver__2:
+;   28:	){
+;   29:		return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___OpenDriver__8         ;604e 
+___OpenDriver__3:
+;   30:	}
+;   31:
+;   32:	D(bug("Opening driver %s port %ld\n",driverdata->mididevicedata->Name,driverdata->portnum));
+;   33:
+;   34:	driverdata->midiportdata=(*driverdata->mididevicedata->OpenPort)(
+              MOVE.L         $2c(A5),A0               ;206d 002c 
+              MOVE.L         $18(A0),A1               ;2268 0018 
+;   35:		driverdata->mididevicedata,
+;   36:		driverdata->portnum,
+;   37:		(ULONG (* ASM)(APTR REG(a2)))Transmitter,
+;   38:		(void (* ASM)(UWORD REG(d0),APTR REG(a2))) Receiver,
+;   39:		driverdata
+;   40:	);
+              MOVE.L         A1,$14(A7)               ;2f49 0014 
+              MOVEM.L        A2/A3,-(A7)              ;48e7 0030 
+              MOVE.L         A0,A3                    ;2648 
+              MOVE.L         $30(A5),D0               ;202d 0030 
+              LEA            Transmitter(PC),A0       ;41fa 0000 
+              LEA            Receiver(PC),A1          ;43fa 0000 
+              MOVE.L         A5,A2                    ;244d 
+              MOVE.L         $1c(A7),A6               ;2c6f 001c 
+              JSR            (A6)                     ;4e96 
+              MOVEM.L        (A7)+,A2/A3              ;4cdf 0c00 
+              MOVE.L         D0,$28(A5)               ;2b40 0028 
+;   41:
+;   42:	if(driverdata->midiportdata==NULL){
+              BNE.B          ___OpenDriver__7         ;661c 
+___OpenDriver__4:
+;   43:		D(bug("camd.library: drivers.c/OpenDriver. (*OpenPort) failed...\n"));
+;   44:		EndReceiverProc(driverdata,CamdBase);
+              MOVE.L         A5,A0                    ;204d 
+              MOVE.L         A2,A1                    ;224a 
+              BSR.W          @EndReceiverProc         ;6100 0000 
+;   45:		if(ErrorCode!=NULL){
+              MOVE.L         A3,D0                    ;200b 
+              BEQ.B          ___OpenDriver__6         ;670c 
+___OpenDriver__5:
+;   46:			*ErrorCode=CME_NoUnit(driverdata->portnum);
+              MOVE.L         #$334,D0                 ;203c 0000 0334 
+              ADD.L          $30(A5),D0               ;d0ad 0030 
+              MOVE.L         D0,(A3)                  ;2680 
+___OpenDriver__6:
+;   47:		}
+;   48:		return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              DC.W           $c40                     ;0c40 
+___OpenDriver__7:
+;   49:	}
+;   50:
+;   51:	return TRUE;
+              MOVEQ.L        #$1,D0                   ;7001 
+___OpenDriver__8:
+              MOVEM.L        (A7)+,A2/A3/A5/A6        ;4cdf 6c00 
+              ADDQ.W         #$8,A7                   ;504f 
+              RTS                                     ;4e75 
+__const:
+__strings:
+@CloseDriver:
+;   52:}
+;   53:
+;   54:
+;   55:void CloseDriver(struct DriverData *driverdata,struct CamdBase *CamdBase){
+              MOVEM.L        A3/A5,-(A7)              ;48e7 0014 
+___CloseDriver__1:
+              MOVE.L         A1,A3                    ;2649 
+              MOVE.L         A0,A5                    ;2a48 
+;   56:	D(bug("Closing driver %s port %ld\n",driverdata->mididevicedata->Name,driverdata->portnum));
+;   57:
+;   58:	(*driverdata->mididevicedata->ClosePort)(
+              MOVE.L         $2c(A5),A0               ;206d 002c 
+              MOVE.L         $1c(A0),A1               ;2268 001c 
+;   59:		driverdata->mididevicedata,
+;   60:		driverdata->portnum
+;   61:	);
+              MOVE.L         A3,-(A7)                 ;2f0b 
+              MOVE.L         A0,A3                    ;2648 
+              MOVE.L         $30(A5),D0               ;202d 0030 
+              JSR            (A1)                     ;4e91 
+              MOVE.L         (A7)+,A1                 ;225f 
+;   62:	EndReceiverProc(driverdata,CamdBase);
+              MOVE.L         A5,A0                    ;204d 
+___CloseDriver__2:
+              MOVEM.L        (A7)+,A3/A5              ;4cdf 2800 
+              BRA.W          @EndReceiverProc         ;6000 0000 
+___CloseDriver__3:
+___CloseDriver__4:
+@AllocDriverData:
+;   63:}
+;   64:
+;   65:BOOL AllocDriverData(
+;   66:	struct Drivers *driver,
+;   67:	struct MidiDeviceData *mididevicedata,
+;   68:	struct CamdBase *CamdBase
+;   69:){
+              SUB.W          #$10c,A7                 ;9efc 010c 
+              MOVEM.L        D5/D6/D7/A2/A3/A5/A6,-(A7);48e7 0736 
+___AllocDriverData__1:
+              MOVE.L         $12c(A7),A5              ;2a6f 012c 
+              MOVE.L         A1,$24(A7)               ;2f49 0024 
+;   70:	ULONG nports;
+;   71:	LONG lokke;
+;   72:
+;   73:	struct DriverData *driverdata;
+;   74:
+;   75:	struct MidiCluster *cluster;
+;   76:	char nametemp[256];
+;   77:
+;   78:	nports=driver->numports;
+              MOVE.L         A0,A3                    ;2648 
+              MOVE.L         $4(A3),D7                ;2e2b 0004 
+;   79:
+;   80:	driver->driverdatas=AllocMem((ULONG)(sizeof(struct DriverData *)*nports),MEMF_ANY|MEMF_CLEAR|MEMF_PUBLIC);
+              MOVE.L         D7,D0                    ;2007 
+              ASL.L          #$2,D0                   ;e580 
+              MOVE.L         A0,$20(A7)               ;2f48 0020 
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              MOVE.L         #$10001,D1               ;223c 0001 0001 
+              JSR            $ffffff3a(A6)            ;4eae ff3a 
+              MOVE.L         D0,$10(A3)               ;2740 0010 
+;   81:	if(driver->driverdatas==NULL){
+              BEQ.W          ___AllocDriverData__15   ;6700 01ac 
+___AllocDriverData__2:
+;   82:		return FALSE;
+              MOVEQ.L        #$0,D6                   ;7c00 
+              MOVEQ.L        #$0,D5                   ;7a00 
+              BRA.W          ___AllocDriverData__10   ;6000 0156 
+___AllocDriverData__3:
+;   83:	}
+;   84:
+;   85:	for(lokke=0;lokke<nports;lokke++){
+;   86:		driverdata=AllocMem(sizeof(struct DriverData),MEMF_ANY | MEMF_CLEAR | MEMF_PUBLIC);
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              MOVE.L         #$110,D0                 ;203c 0000 0110 
+              MOVE.L         #$10001,D1               ;223c 0001 0001 
+              JSR            $ffffff3a(A6)            ;4eae ff3a 
+              MOVE.L         D0,A3                    ;2640 
+;   87:		if(driverdata==NULL){
+              TST.L          D0                       ;4a80 
+              BEQ.W          ___AllocDriverData__15   ;6700 0188 
+___AllocDriverData__4:
+;   88:			return FALSE;
+              MOVE.L         $20(A7),A1               ;226f 0020 
+;   89:		}
+;   90:		driver->driverdatas[lokke]=driverdata;
+              MOVE.L         $10(A1),A0               ;2069 0010 
+              MOVE.L         A3,$0(A0,D5.L)           ;218b 5800 
+;   91:
+;   92:		driverdata->innode.ln_Type=NT_USER-MLTYPE_NTypes;
+              MOVEQ.L        #$fc,D0                  ;70fc 
+              MOVE.B         D0,$16(A3)               ;1740 0016 
+;   93:		driverdata->innode.ln_Pri=127;					// Should be set lower?
+              MOVEQ.L        #$7f,D1                  ;727f 
+              MOVE.B         D1,$17(A3)               ;1741 0017 
+;   94:
+;   95:		driverdata->outnode.ln_Type=NT_USER-MLTYPE_NTypes;
+              MOVE.B         D0,$8(A3)                ;1740 0008 
+;   96:		driverdata->outnode.ln_Pri=127;					// Should be set lower?
+              MOVE.B         D1,$9(A3)                ;1741 0009 
+;   97:
+;   98:		driverdata->mididevicedata=mididevicedata;
+              MOVE.L         $24(A7),A2               ;246f 0024 
+              MOVE.L         A2,$2c(A3)               ;274a 002c 
+;   99:
+;  100:		driverdata->buffer=AllocVec(sizeof(ULONG)*OUTBUFFERSIZE,MEMF_ANY|MEMF_PUBLIC);
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              MOVE.L         #$1004,D0                ;203c 0000 1004 
+              MOVEQ.L        #$1,D1                   ;7201 
+              JSR            $fffffd54(A6)            ;4eae fd54 
+              MOVE.L         D0,$38(A3)               ;2740 0038 
+;  101:		if(driverdata->buffer==NULL){
+              BEQ.W          ___AllocDriverData__15   ;6700 0148 
+___AllocDriverData__5:
+;  102:			return FALSE;
+              LEA            $3c(A3),A1               ;43eb 003c 
+;  103:		}
+;  104:
+;  105:		driverdata->buffercurrsend=driverdata->buffer;
+;  106:		driverdata->buffercurr=driverdata->buffer;
+              MOVE.L         D0,(A1)+                 ;22c0 
+;  107:		driverdata->bufferend=driverdata->buffer+OUTBUFFERSIZE;
+              MOVE.L         D0,(A1)+                 ;22c0 
+              MOVE.L         D0,A0                    ;2040 
+              ADD.W          #$1004,A0                ;d0fc 1004 
+;  108:		driverdata->sendpos=0;
+              MOVE.L         A0,(A1)+                 ;22c8 
+;  109:
+;  110:		driverdata->buffer_rt=AllocVec(sizeof(UBYTE)*OUTBUFFERSIZE_RT,MEMF_ANY|MEMF_PUBLIC);
+              CLR.L          (A1)+                    ;4299 
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              MOVE.L         #$401,D0                 ;203c 0000 0401 
+              MOVEQ.L        #$1,D1                   ;7201 
+              JSR            $fffffd54(A6)            ;4eae fd54 
+;  111:		if(driverdata->buffer_rt==NULL){
+              MOVE.L         D0,$68(A3)               ;2740 0068 
+              BEQ.W          ___AllocDriverData__15   ;6700 011e 
+___AllocDriverData__6:
+;  112:			return FALSE;
+              MOVE.L         D0,$6c(A3)               ;2740 006c 
+;  113:		}
+;  114:		driverdata->buffercurrsend_rt=driverdata->buffer_rt;
+;  115:		driverdata->buffercurr_rt=driverdata->buffer_rt;
+              MOVE.L         D0,$70(A3)               ;2740 0070 
+;  116:		driverdata->bufferend=driverdata->buffer+OUTBUFFERSIZE_RT;
+              MOVE.L         $38(A3),A0               ;206b 0038 
+              ADD.W          #$1004,A0                ;d0fc 1004 
+              MOVE.L         A0,$44(A3)               ;2748 0044 
+;  117:
+;  118:
+;  119:		driverdata->status=0;
+              CLR.L          $4c(A3)                  ;42ab 004c 
+;  120:		driverdata->portnum=lokke;
+              MOVE.L         D6,$30(A3)               ;2746 0030 
+;  121:
+;  122:		driverdata->Input_Treat=Receiver_init;
+              LEA            @Receiver_init(PC),A0    ;41fa 0000 
+              MOVE.L         A0,$e4(A3)               ;2748 00e4 
+;  123:
+;  124:		driverdata->re_start=AllocVec((ULONG)(sizeof(UWORD)*RECEIVERPROCBUFFERSIZE),MEMF_ANY|MEMF_PUBLIC);
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              MOVE.L         #$802,D0                 ;203c 0000 0802 
+              MOVEQ.L        #$1,D1                   ;7201 
+              JSR            $fffffd54(A6)            ;4eae fd54 
+              MOVE.L         D0,$f0(A3)               ;2740 00f0 
+;  125:		if(driverdata->re_start==NULL){
+              BEQ.W          ___AllocDriverData__15   ;6700 00e2 
+___AllocDriverData__7:
+;  126:			return FALSE;
+              MOVE.L         D0,$f4(A3)               ;2740 00f4 
+;  127:		}
+;  128:		driverdata->re_write=driverdata->re_start;
+;  129:		driverdata->re_end=driverdata->re_start+RECEIVERPROCBUFFERSIZE;
+              MOVE.L         D0,A0                    ;2040 
+              ADD.W          #$802,A0                 ;d0fc 0802 
+              MOVE.L         A0,$f8(A3)               ;2748 00f8 
+;  130:		driverdata->re_read=driverdata->re_start;
+              MOVE.L         $f0(A3),$100(A3)         ;276b 00f0 0100 
+;  131:
+;  132:
+;  133:		mysprintf(CamdBase,nametemp,"%s.in.%ld",mididevicedata->Name,lokke);
+              MOVE.L         D6,-(A7)                 ;2f06 
+              MOVE.L         $4(A2),-(A7)             ;2f2a 0004 
+              PEA            __MERGED(A4)             ;486c 0000 
+              PEA            $34(A7)                  ;486f 0034 
+              MOVE.L         A5,-(A7)                 ;2f0d 
+              BSR.W          mysprintf                ;6100 0000 
+;  134:		if((cluster=NewCluster(nametemp,CamdBase))==FALSE){
+              LEA            $3c(A7),A0               ;41ef 003c 
+              MOVE.L         A5,A1                    ;224d 
+              BSR.W          @NewCluster              ;6100 0000 
+              LEA            $14(A7),A7               ;4fef 0014 
+              MOVE.L         D0,A0                    ;2040 
+              TST.L          D0                       ;4a80 
+              BEQ.W          ___AllocDriverData__15   ;6700 00a4 
+___AllocDriverData__8:
+;  135:			return FALSE;
+              MOVE.L         A0,$20(A3)               ;2748 0020 
+;  136:		}
+;  137:		driverdata->incluster=(struct MyMidiCluster *)cluster;
+;  138:
+;  139:		mysprintf(CamdBase,nametemp,"%s.out.%ld",mididevicedata->Name,lokke);
+              MOVE.L         D6,-(A7)                 ;2f06 
+              MOVE.L         $28(A7),A0               ;206f 0028 
+              MOVE.L         $4(A0),-(A7)             ;2f28 0004 
+              PEA            __MERGED+$a(A4)          ;486c 000a 
+              PEA            $34(A7)                  ;486f 0034 
+              MOVE.L         A5,-(A7)                 ;2f0d 
+              BSR.W          mysprintf                ;6100 0000 
+;  140:		if((cluster=NewCluster(nametemp,CamdBase))==FALSE){
+              LEA            $3c(A7),A0               ;41ef 003c 
+              MOVE.L         A5,A1                    ;224d 
+              BSR.W          @NewCluster              ;6100 0000 
+              LEA            $14(A7),A7               ;4fef 0014 
+              MOVE.L         D0,A0                    ;2040 
+              TST.L          D0                       ;4a80 
+              BEQ.B          ___AllocDriverData__15   ;6772 
+___AllocDriverData__9:
+;  141:			return FALSE;
+              MOVE.L         A0,$24(A3)               ;2748 0024 
+;  142:		}
+;  143:		driverdata->outcluster=(struct MyMidiCluster *)cluster;
+;  144:
+;  145:		InitSemaphore(&driverdata->sendsemaphore);
+              LEA            $88(A3),A0               ;41eb 0088 
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              JSR            $fffffdd2(A6)            ;4eae fdd2 
+;  146:		InitSemaphore(&driverdata->sysexsemaphore);
+              LEA            $b6(A3),A0               ;41eb 00b6 
+              JSR            $fffffdd2(A6)            ;4eae fdd2 
+;  147:
+;  148:		driverdata->isOutOpen=FALSE;
+              CLR.W          $36(A3)                  ;426b 0036 
+;  149:		driverdata->isInOpen=FALSE;
+              CLR.W          $34(A3)                  ;426b 0034 
+              ADDQ.L         #$1,D6                   ;5286 
+              ADDQ.L         #$4,D5                   ;5885 
+___AllocDriverData__10:
+              CMP.L          D7,D6                    ;bc87 
+              BCS.W          ___AllocDriverData__3    ;6500 fea8 
+___AllocDriverData__11:
+;  150:	}
+;  151:
+;  152:	for(lokke=0;lokke<nports;lokke++){
+              MOVEQ.L        #$0,D6                   ;7c00 
+              MOVEQ.L        #$0,D5                   ;7a00 
+              SUB.L          A2,A2                    ;95ca 
+              SUB.L          A0,A0                    ;91c8 
+              MOVE.L         A0,$1c(A7)               ;2f48 001c 
+              BRA.B          ___AllocDriverData__13   ;6034 
+___AllocDriverData__12:
+;  153:		driverdata=driver->driverdatas[lokke];
+              MOVE.L         $20(A7),A1               ;226f 0020 
+              MOVE.L         $10(A1),A1               ;2269 0010 
+              MOVE.L         $0(A1,D5.L),A3           ;2671 5800 
+;  154:		AddClusterSender(&driverdata->incluster->cluster,&driverdata->innode,NULL,CamdBase);
+              LEA            $e(A3),A1                ;43eb 000e 
+              MOVE.L         A5,-(A7)                 ;2f0d 
+              MOVE.L         A2,-(A7)                 ;2f0a 
+              MOVE.L         $20(A3),A0               ;206b 0020 
+              BSR.W          @AddClusterSender        ;6100 0000 
+;  155:		AddClusterReceiver(&driverdata->outcluster->cluster,&driverdata->outnode,NULL,CamdBase);
+              MOVE.L         A5,(A7)                  ;2e8d 
+              MOVE.L         $24(A7),-(A7)            ;2f2f 0024 
+              MOVE.L         $24(A3),A0               ;206b 0024 
+              MOVE.L         A3,A1                    ;224b 
+              BSR.W          @AddClusterReceiver      ;6100 0000 
+              LEA            $c(A7),A7                ;4fef 000c 
+              ADDQ.L         #$1,D6                   ;5286 
+              ADDQ.L         #$4,D5                   ;5885 
+___AllocDriverData__13:
+              CMP.L          D7,D6                    ;bc87 
+              BCS.B          ___AllocDriverData__12   ;65c8 
+___AllocDriverData__14:
+;  156:	}
+;  157:
+;  158:	return TRUE;
+              MOVEQ.L        #$1,D0                   ;7001 
+___AllocDriverData__15:
+              MOVEM.L        (A7)+,D5/D6/D7/A2/A3/A5/A6;4cdf 6ce0 
+              ADD.W          #$10c,A7                 ;defc 010c 
+              RTS                                     ;4e75 
+@FreeDriverData:
+;  159:}
+;  160:
+;  161:
+;  162:void FreeDriverData(struct Drivers *driver,
+;  163:	struct CamdBase *CamdBase
+;  164:){
+              MOVEM.L        D6/D7/A2/A3/A5/A6,-(A7)  ;48e7 0336 
+___FreeDriverData__1:
+              MOVE.L         A1,A3                    ;2649 
+              MOVE.L         A0,A5                    ;2a48 
+;  165:	struct DriverData *driverdata;
+;  166:	ULONG lokke;
+;  167:
+;  168:	if(driver->driverdatas!=NULL){
+              TST.L          $10(A5)                  ;4aad 0010 
+              BEQ.B          ___FreeDriverData__5     ;672c 
+___FreeDriverData__2:
+;  169:		for(lokke=0;lokke<driver->numports;lokke++){
+              MOVEQ.L        #$0,D7                   ;7e00 
+              MOVEQ.L        #$0,D6                   ;7c00 
+              BRA.B          ___FreeDriverData__4     ;6020 
+___FreeDriverData__3:
+;  170:			driverdata=driver->driverdatas[lokke];
+              MOVE.L         $10(A5),A0               ;206d 0010 
+              MOVE.L         $0(A0,D6.L),A2           ;2470 6800 
+;  171:			RemoveCluster(&driverdata->incluster->cluster,CamdBase);
+              MOVE.L         $20(A2),A0               ;206a 0020 
+              MOVE.L         A3,A1                    ;224b 
+              BSR.W          @RemoveCluster           ;6100 0000 
+;  172:			RemoveCluster(&driverdata->outcluster->cluster,CamdBase);
+              MOVE.L         $24(A2),A0               ;206a 0024 
+              MOVE.L         A3,A1                    ;224b 
+              BSR.W          @RemoveCluster           ;6100 0000 
+              ADDQ.L         #$1,D7                   ;5287 
+              ADDQ.L         #$4,D6                   ;5886 
+___FreeDriverData__4:
+              CMP.L          $4(A5),D7                ;bead 0004 
+              BCS.B          ___FreeDriverData__3     ;65da 
+___FreeDriverData__5:
+;  173:		}
+;  174:	}
+;  175:
+;  176:	if(driver->driverdatas!=NULL){
+              TST.L          $10(A5)                  ;4aad 0010 
+              BEQ.B          ___FreeDriverData__17    ;675e 
+___FreeDriverData__6:
+;  177:		for(lokke=0;lokke<driver->numports;lokke++){
+              MOVEQ.L        #$0,D7                   ;7e00 
+              MOVEQ.L        #$0,D6                   ;7c00 
+              BRA.B          ___FreeDriverData__15    ;6040 
+___FreeDriverData__7:
+;  178:			driverdata=driver->driverdatas[lokke];
+              MOVE.L         $10(A5),A0               ;206d 0010 
+              MOVE.L         $0(A0,D6.L),A2           ;2470 6800 
+;  179:			if(driverdata!=NULL){
+              MOVE.L         A2,D0                    ;200a 
+              BEQ.B          ___FreeDriverData__14    ;6730 
+___FreeDriverData__8:
+;  180:				if(driverdata->buffer!=NULL){
+              MOVE.L         $38(A2),D0               ;202a 0038 
+              BEQ.B          ___FreeDriverData__10    ;670a 
+___FreeDriverData__9:
+;  181:					FreeVec(driverdata->buffer);
+              MOVE.L         D0,A1                    ;2240 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              JSR            $fffffd4e(A6)            ;4eae fd4e 
+___FreeDriverData__10:
+;  182:				}
+;  183:				if(driverdata->buffer_rt!=NULL){
+              MOVE.L         $68(A2),D0               ;202a 0068 
+              BEQ.B          ___FreeDriverData__12    ;670a 
+___FreeDriverData__11:
+;  184:					FreeVec(driverdata->buffer_rt);
+              MOVE.L         D0,A1                    ;2240 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              JSR            $fffffd4e(A6)            ;4eae fd4e 
+___FreeDriverData__12:
+;  185:				}
+;  186:				if(driverdata->re_start!=NULL){
+              MOVE.L         $f0(A2),D0               ;202a 00f0 
+              BEQ.B          ___FreeDriverData__14    ;670a 
+___FreeDriverData__13:
+;  187:					FreeVec(driverdata->re_start);
+              MOVE.L         D0,A1                    ;2240 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              JSR            $fffffd4e(A6)            ;4eae fd4e 
+___FreeDriverData__14:
+;  188:				}
+;  189:			}
+              ADDQ.L         #$1,D7                   ;5287 
+              ADDQ.L         #$4,D6                   ;5886 
+___FreeDriverData__15:
+              CMP.L          $4(A5),D7                ;bead 0004 
+              BCS.B          ___FreeDriverData__7     ;65ba 
+___FreeDriverData__16:
+;  190:		}
+;  191:		FreeMem(driver->driverdatas,sizeof(struct DriverData *)*driver->numports);
+              MOVE.L         $4(A5),D0                ;202d 0004 
+              ASL.L          #$2,D0                   ;e580 
+              MOVE.L         $10(A5),A1               ;226d 0010 
+              MOVE.L         $22(A3),A6               ;2c6b 0022 
+              JSR            $ffffff2e(A6)            ;4eae ff2e 
+___FreeDriverData__17:
+              MOVEM.L        (A7)+,D6/D7/A2/A3/A5/A6  ;4cdf 6cc0 
+              RTS                                     ;4e75 
+@FindPrevDriverForMidiDeviceData:
+;  192:	}
+;  193:}
+;  194:
+;  195:struct Drivers *FindPrevDriverForMidiDeviceData(
+;  196:	struct MidiDeviceData *mididevicedata,
+;  197:	struct CamdBase *CamdBase
+;  198:){
+              SUBQ.W         #$4,A7                   ;594f 
+              MOVEM.L        A2/A3/A5,-(A7)           ;48e7 0034 
+___FindPrevDriverForMidiDeviceData__1:
+              MOVE.L         A0,A5                    ;2a48 
+;  199:	struct Drivers *driver,*temp=NULL;
+              SUB.L          A3,A3                    ;97cb 
+;  200:
+;  201:	driver=CB(CamdBase)->drivers;
+              MOVE.L         $32(A1),A2               ;2469 0032 
+              MOVE.L         A1,$c(A7)                ;2f49 000c 
+;  202:
+;  203:	while(driver->mididevicedata!=mididevicedata){
+              BRA.B          ___FindPrevDriverForMidiDeviceData__3;6004 
+___FindPrevDriverForMidiDeviceData__2:
+;  204:		temp=driver;
+              MOVE.L         A2,A3                    ;264a 
+;  205:		driver=driver->next;
+              MOVE.L         (A2),A2                  ;2452 
+___FindPrevDriverForMidiDeviceData__3:
+;  206:	}
+              MOVE.L         $c(A2),A0                ;206a 000c 
+              CMP.L          A5,A0                    ;b1cd 
+              BNE.B          ___FindPrevDriverForMidiDeviceData__2;66f4 
+___FindPrevDriverForMidiDeviceData__4:
+;  207:
+;  208:	return temp;
+              MOVE.L         A3,D0                    ;200b 
+___FindPrevDriverForMidiDeviceData__5:
+              MOVEM.L        (A7)+,A2/A3/A5           ;4cdf 2c00 
+              ADDQ.W         #$4,A7                   ;584f 
+              RTS                                     ;4e75 
+@LoadDriver:
+;  209:}
+;  210:
+;  211:void LoadDriver(char *name,
+;  212:	struct CamdBase *CamdBase
+;  213:){
+              SUBQ.W         #$8,A7                   ;514f 
+              MOVEM.L        D6/D7/A2/A3/A5/A6,-(A7)  ;48e7 0336 
+___LoadDriver__1:
+              MOVE.L         A1,A5                    ;2a49 
+;  214:	struct Drivers *driver;
+;  215:	struct MidiDeviceData *mididevicedata;
+;  216:
+;  217:	D(bug("camd.library: drivers.c/LoadDriver - trying to open %s..\n",name));
+;  218:
+;  219:	mididevicedata=OpenMidiDevice(name);
+              MOVE.L         A0,$1c(A7)               ;2f48 001c 
+              MOVE.L         A5,A6                    ;2c4d 
+              JSR            $ffffff34(A6)            ;4eae ff34 
+              MOVE.L         D0,A2                    ;2440 
+;  220:	D(bug("camd.library: drivers.c/LoadDriver - It was%s a success..\n",mididevicedata==NULL?" not":""));
+;  221:
+;  222:	if(mididevicedata==NULL) return;
+              MOVE.L         D0,$18(A7)               ;2f40 0018 
+              BEQ.W          ___LoadDriver__30        ;6700 00ec 
+___LoadDriver__2:
+              MOVE.L         $10(A2),A0               ;206a 0010 
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              JSR            (A0)                     ;4e90 
+              TST.W          D0                       ;4a40 
+              BNE.B          ___LoadDriver__4         ;6606 
+___LoadDriver__3:
+;  223:
+;  224:	if((mididevicedata->Flags&1)==0){
+;  225:#ifdef _AROS
+;  226:		D(bug("%s: mididevicedata->Flags&1==0 is not not supported for AROS!\n",name));
+;  227:		CloseMidiDevice(mididevicedata);
+;  228:		return;
+;  229:#else
+;  230:		D(bug("%s: old camd driver format. (Supported)\n",name));
+;  231:#endif
+;  232:	}
+;  233:
+;  234:	if((*mididevicedata->Init)(SysBase)==FALSE){
+;  235:		CloseMidiDevice(mididevicedata);
+              MOVE.L         A2,A0                    ;204a 
+;  236:		return;
+              BRA.W          ___LoadDriver__29        ;6000 00d2 
+___LoadDriver__4:
+;  237:	}
+;  238:
+;  239:	driver=FindPrevDriverForMidiDeviceData(mididevicedata,CamdBase);
+              SUB.L          A2,A2                    ;95ca 
+              MOVE.L         $32(A5),A3               ;266d 0032 
+              BRA.B          ___LoadDriver__6         ;6004 
+___LoadDriver__5:
+              MOVE.L         A3,A2                    ;244b 
+              MOVE.L         (A3),A3                  ;2653 
+___LoadDriver__6:
+              MOVE.L         $c(A3),A0                ;206b 000c 
+              CMP.L          $18(A7),A0               ;b1ef 0018 
+              BNE.B          ___LoadDriver__5         ;66f2 
+___LoadDriver__7:
+;  240:	if(driver==NULL){
+              MOVE.L         A2,D0                    ;200a 
+              BNE.B          ___LoadDriver__9         ;6606 
+___LoadDriver__8:
+;  241:		driver=CB(CamdBase)->drivers;
+              MOVE.L         $32(A5),A2               ;246d 0032 
+              DC.W           $c40                     ;0c40 
+___LoadDriver__9:
+;  242:	}else{
+;  243:		driver=driver->next;
+              MOVE.L         (A2),A2                  ;2452 
+___LoadDriver__10:
+;  244:	}
+;  245:
+;  246:	if(AllocDriverData(driver,mididevicedata,CamdBase)==FALSE){
+              MOVE.L         A5,-(A7)                 ;2f0d 
+              MOVE.L         A2,A0                    ;204a 
+              MOVE.L         $1c(A7),A1               ;226f 001c 
+              BSR.W          AllocDriverData          ;6100 fcee 
+___LoadDriver__11:
+              ADDQ.W         #$4,A7                   ;584f 
+              TST.W          D0                       ;4a40 
+              BNE.W          ___LoadDriver__30        ;6600 00a2 
+___LoadDriver__12:
+;  247:		FreeDriverData(driver,CamdBase);
+              TST.L          $10(A2)                  ;4aaa 0010 
+              BEQ.B          ___LoadDriver__16        ;672c 
+___LoadDriver__13:
+              MOVEQ.L        #$0,D7                   ;7e00 
+              MOVEQ.L        #$0,D6                   ;7c00 
+              BRA.B          ___LoadDriver__15        ;6020 
+___LoadDriver__14:
+              MOVE.L         $10(A2),A0               ;206a 0010 
+              MOVE.L         $0(A0,D6.L),A3           ;2670 6800 
+              MOVE.L         $20(A3),A0               ;206b 0020 
+              MOVE.L         A5,A1                    ;224d 
+              BSR.W          @RemoveCluster           ;6100 0000 
+              MOVE.L         $24(A3),A0               ;206b 0024 
+              MOVE.L         A5,A1                    ;224d 
+              BSR.W          @RemoveCluster           ;6100 0000 
+              ADDQ.L         #$1,D7                   ;5287 
+              ADDQ.L         #$4,D6                   ;5886 
+___LoadDriver__15:
+              CMP.L          $4(A2),D7                ;beaa 0004 
+              BCS.B          ___LoadDriver__14        ;65da 
+___LoadDriver__16:
+              TST.L          $10(A2)                  ;4aaa 0010 
+              BEQ.B          ___LoadDriver__28        ;675e 
+___LoadDriver__17:
+              MOVEQ.L        #$0,D7                   ;7e00 
+              MOVEQ.L        #$0,D6                   ;7c00 
+              BRA.B          ___LoadDriver__26        ;6040 
+___LoadDriver__18:
+              MOVE.L         $10(A2),A0               ;206a 0010 
+              MOVE.L         $0(A0,D6.L),A3           ;2670 6800 
+              MOVE.L         A3,D0                    ;200b 
+              BEQ.B          ___LoadDriver__25        ;6730 
+___LoadDriver__19:
+              MOVE.L         $38(A3),D0               ;202b 0038 
+              BEQ.B          ___LoadDriver__21        ;670a 
+___LoadDriver__20:
+              MOVE.L         D0,A1                    ;2240 
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              JSR            $fffffd4e(A6)            ;4eae fd4e 
+___LoadDriver__21:
+              MOVE.L         $68(A3),D0               ;202b 0068 
+              BEQ.B          ___LoadDriver__23        ;670a 
+___LoadDriver__22:
+              MOVE.L         D0,A1                    ;2240 
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              JSR            $fffffd4e(A6)            ;4eae fd4e 
+___LoadDriver__23:
+              MOVE.L         $f0(A3),D0               ;202b 00f0 
+              BEQ.B          ___LoadDriver__25        ;670a 
+___LoadDriver__24:
+              MOVE.L         D0,A1                    ;2240 
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              JSR            $fffffd4e(A6)            ;4eae fd4e 
+___LoadDriver__25:
+              ADDQ.L         #$1,D7                   ;5287 
+              ADDQ.L         #$4,D6                   ;5886 
+___LoadDriver__26:
+              CMP.L          $4(A2),D7                ;beaa 0004 
+              BCS.B          ___LoadDriver__18        ;65ba 
+___LoadDriver__27:
+              MOVE.L         $4(A2),D0                ;202a 0004 
+              ASL.L          #$2,D0                   ;e580 
+              MOVE.L         $10(A2),A1               ;226a 0010 
+              MOVE.L         $22(A5),A6               ;2c6d 0022 
+              JSR            $ffffff2e(A6)            ;4eae ff2e 
+___LoadDriver__28:
+;  248:		CloseMidiDevice(mididevicedata);
+              MOVE.L         $18(A7),A0               ;206f 0018 
+___LoadDriver__29:
+              MOVE.L         A5,A6                    ;2c4d 
+              JSR            $ffffff2e(A6)            ;4eae ff2e 
+___LoadDriver__30:
+              MOVEM.L        (A7)+,D6/D7/A2/A3/A5/A6  ;4cdf 6cc0 
+              ADDQ.W         #$8,A7                   ;504f 
+              RTS                                     ;4e75 
+              XREF           @CreateReceiverProc
+              XREF           Transmitter
+              XREF           Receiver
+              XREF           @EndReceiverProc
+              XREF           @Receiver_init
+              XREF           mysprintf
+              XREF           @NewCluster
+              XREF           @AddClusterSender
+              XREF           @AddClusterReceiver
+              XREF           @RemoveCluster
+              XDEF           @OpenDriver
+              XDEF           @CloseDriver
+              XDEF           @AllocDriverData
+              XDEF           @FreeDriverData
+              XDEF           @FindPrevDriverForMidiDeviceData
+              XDEF           @LoadDriver
+
+              SECTION        __MERGED,DATA
+__MERGED
+              DC.B           '%s.in.%ld'
+              DC.B           $00
+              DC.B           '%s.out.%ld'
+              DC.B           $00
+              DC.B           $00
+              DC.B           $00
+              DC.B           $00
+              END

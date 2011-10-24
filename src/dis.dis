@@ -1,0 +1,793 @@
+              SECTION      text,CODE
+__code:
+@IncBuffer_of:
+;    1:
+;    2:
+;    3:#include <proto/exec.h>
+;    4:#include <proto/dos.h>
+;    5:#include <dos.h>
+;    6:
+;    7:#include "camd_intern.h"
+;    8:
+;    9:#undef SysBase
+;   10:#undef DOSBase
+;   11:
+;   12:#ifndef min
+;   13:#define min(a,b) ((a)<=(b)?(a):(b))
+;   14:#endif
+;   15:
+;   16:
+;   17:/******************************************************************************
+;   18:
+;   19:  FUNCTION
+;   20:	This functions supports the original camd driver format.
+;   21:
+;   22:******************************************************************************/
+;   23:
+;   24:
+;   25:
+;   26:__inline void IncBuffer_of(struct DriverData *data,ULONG **buffer){
+              MOVE.L         A5,-(A7)                 ;2f0d 
+___IncBuffer_of__1:
+              MOVE.L         A0,A5                    ;2a48 
+;   27:	(*buffer)++;
+              ADDQ.L         #$4,(A1)                 ;5891 
+;   28:	if(*buffer==data->bufferend){
+              MOVE.L         (A1),A0                  ;2051 
+              CMP.L          $44(A5),A0               ;b1ed 0044 
+              BNE.B          ___IncBuffer_of__3       ;6604 
+___IncBuffer_of__2:
+;   29:		*buffer=data->buffer;
+              MOVE.L         $38(A5),(A1)             ;22ad 0038 
+___IncBuffer_of__3:
+              MOVE.L         (A7)+,A5                 ;2a5f 
+              RTS                                     ;4e75 
+__const:
+__strings:
+@IncBuffer_rt_of:
+;   30:	}
+;   31:}
+;   32:
+;   33:__inline void IncBuffer_rt_of(struct DriverData *data,UBYTE **buffer_rt){
+              MOVE.L         A5,-(A7)                 ;2f0d 
+___IncBuffer_rt_of__1:
+              MOVE.L         A0,A5                    ;2a48 
+;   34:	(*buffer_rt)++;
+              ADDQ.L         #$1,(A1)                 ;5291 
+;   35:	if(*buffer_rt==data->bufferend_rt){
+              MOVE.L         (A1),A0                  ;2051 
+              CMP.L          $74(A5),A0               ;b1ed 0074 
+              BNE.B          ___IncBuffer_rt_of__3    ;6604 
+___IncBuffer_rt_of__2:
+;   36:		*buffer_rt=data->buffer_rt;
+              MOVE.L         $68(A5),(A1)             ;22ad 0068 
+___IncBuffer_rt_of__3:
+              MOVE.L         (A7)+,A5                 ;2a5f 
+              RTS                                     ;4e75 
+Transmitter_oldformat:
+;   37:	}
+;   38:}
+;   39:
+;   40:
+;   41:
+;   42:// NOTE
+;   43://   Eh, I guess the function is a bit clumsy made. Well, it doesn't matter,
+;   44://   it works. And its not that important to be extremely fast, I hope. (certainly not
+;   45://   for rs-323 drivers, that is.)
+;   46:
+;   47:ULONG ASM Transmitter_oldformat(REG(a2) struct DriverData *driverdata){
+              MOVEM.L        D2/D6/D7/A5,-(A7)        ;48e7 2304 
+___Transmitter_oldformat__1:
+;   48:	UBYTE *buf;
+;   49:	UBYTE len;
+;   50:	UBYTE ret;
+;   51:
+;   52:	driverdata->isnowtransmitting=1;
+              MOVEQ.L        #$1,D0                   ;7001 
+              MOVE.L         D0,$78(A2)               ;2540 0078 
+;   53:
+;   54:/* Decrease this ones as soon as possible.*/
+;   55:
+;   56:	driverdata->unsent--;
+              SUBQ.L         #$1,$50(A2)              ;53aa 0050 
+;   57:	driverdata->unsent_rt--;
+              SUBQ.L         #$1,$54(A2)              ;53aa 0054 
+;   58:
+;   59:
+;   60:	if(driverdata->unsent_rt>0){
+              BLE.B          ___Transmitter_oldformat__9;6f40 
+___Transmitter_oldformat__2:
+;   61:		driverdata->unsent++;
+              ADDQ.L         #$1,$50(A2)              ;52aa 0050 
+;   62:		ret=*driverdata->buffercurrsend_rt;
+              MOVE.L         $6c(A2),A0               ;206a 006c 
+              MOVE.B         (A0),D7                  ;1e10 
+;   63:		IncBuffer_rt_of(driverdata,&driverdata->buffercurrsend_rt);
+              LEA            $6c(A2),A0               ;41ea 006c 
+              ADDQ.L         #$1,(A0)                 ;5290 
+              MOVE.L         (A0),A1                  ;2250 
+              CMP.L          $74(A2),A1               ;b3ea 0074 
+              BNE.B          ___Transmitter_oldformat__4;6604 
+___Transmitter_oldformat__3:
+              MOVE.L         $68(A2),(A0)             ;20aa 0068 
+___Transmitter_oldformat__4:
+;   64:		if(driverdata->unsent==0 && driverdata->unsent_rt==0){
+              TST.L          $50(A2)                  ;4aaa 0050 
+              BNE.B          ___Transmitter_oldformat__7;6610 
+___Transmitter_oldformat__5:
+              TST.L          $54(A2)                  ;4aaa 0054 
+              BNE.B          ___Transmitter_oldformat__7;660a 
+___Transmitter_oldformat__6:
+;   65:			driverdata->isnowtransmitting=0;
+              CLR.L          $78(A2)                  ;42aa 0078 
+;   66:			putreg(REG_D1,0xff);
+              MOVEQ.L        #$0,D1                   ;7200 
+              NOT.B          D1                       ;4601 
+              BRA.B          ___Transmitter_oldformat__8;6006 
+___Transmitter_oldformat__7:
+;   67:		}else{
+;   68:			driverdata->isnowtransmitting=0;
+              CLR.L          $78(A2)                  ;42aa 0078 
+;   69:			putreg(REG_D1,0);
+              MOVEQ.L        #$0,D1                   ;7200 
+___Transmitter_oldformat__8:
+;   70:		}
+;   71:		return ret;
+              MOVEQ.L        #$0,D0                   ;7000 
+              MOVE.B         D7,D0                    ;1007 
+              BRA.W          ___Transmitter_oldformat__45;6000 0166 
+___Transmitter_oldformat__9:
+;   72:	}
+;   73:	driverdata->unsent_rt++;
+              ADDQ.L         #$1,$54(A2)              ;52aa 0054 
+;   74:
+;   75:
+;   76:/*
+;   77://	The code inside here is theoretical necessarry. If a driver
+;   78:// manage to use more than about 8/31200 second to notify itself to
+;   79:// get a new midi-message (urk, thats much) while it is still
+;   80:// picking data, the following code-lines must be included.
+;   81:// The natural solution to such a problem is ofcourse to let the
+;   82:// driver check if it is sending while notifiying (which I guess
+;   83:// most of them (how many is there really? 3 or 4? ) does) , but
+;   84:// the situation can still happen.)
+;   85:
+;   86:	if(driverdata->unsent<0){
+;   87:		driverdata->unsent=0;
+;   88:		driverdata->isnowtransmitting=0;
+;   89:		putreg(REG_D1,0xff);
+;   90:		return 0xfd;			//Hope this one is not ever going to be used. A nice midi-nop for now. (The alternative is a buzy-loop)
+;   91:	}
+;   92:*/
+;   93:
+;   94:	buf=(UBYTE *)driverdata->buffercurrsend;
+              MOVE.L         $3c(A2),A5               ;2a6a 003c 
+;   95:	len=buf[3];
+              MOVE.B         $3(A5),D7                ;1e2d 0003 
+;   96:
+;   97:	if(driverdata->sendpos==len){
+              MOVEQ.L        #$0,D1                   ;7200 
+              MOVE.B         D7,D1                    ;1207 
+              MOVE.L         $48(A2),D2               ;242a 0048 
+              CMP.L          D1,D2                    ;b481 
+              BNE.B          ___Transmitter_oldformat__20;6664 
+___Transmitter_oldformat__10:
+;   98:		ret=buf[len];
+              MOVEQ.L        #$0,D1                   ;7200 
+              MOVE.B         D7,D1                    ;1207 
+              MOVE.B         $0(A5,D1.W),D6           ;1c35 1000 
+;   99:		if(len==0){
+              TST.B          D7                       ;4a07 
+              BNE.B          ___Transmitter_oldformat__14;6626 
+___Transmitter_oldformat__11:
+;  100:			driverdata->status=0;		//System common category status cancels running status
+              CLR.L          $4c(A2)                  ;42aa 004c 
+;  101:			if(ret==0xf0){					//Realtime SysX handling.
+              CMPI.B         #$f0,D6                  ;0c06 00f0 
+              BNE.B          ___Transmitter_oldformat__14;661c 
+___Transmitter_oldformat__12:
+;  102:				ret=driverdata->buffer_sx[driverdata->buffercurrsend_sx];
+              LEA            $5c(A2),A5               ;4bea 005c 
+              MOVE.L         (A5)+,D1                 ;221d 
+              MOVE.L         (A5)+,A0                 ;205d 
+;  103:				driverdata->buffercurrsend_sx++;
+              MOVE.B         $0(A0,D1.L),D6           ;1c30 1800 
+;  104:				driverdata->unsent_sx--;
+              ADDQ.L         #$1,$5c(A2)              ;52aa 005c 
+;  105:				if(driverdata->unsent_sx>0){
+              SUBQ.L         #$1,(A5)+                ;539d 
+              BLE.B          ___Transmitter_oldformat__14;6f08 
+___Transmitter_oldformat__13:
+;  106:					driverdata->unsent++;
+              ADDQ.L         #$1,$50(A2)              ;52aa 0050 
+;  107:					driverdata->isnowtransmitting=0;
+              BRA.W          ___Transmitter_oldformat__42;6000 0112 
+___Transmitter_oldformat__14:
+;  108:					putreg(REG_D1,0);
+;  109:					return ret;
+;  110:				}
+;  111:			}
+;  112:		}
+;  113:		driverdata->sendpos=0;
+              CLR.L          $48(A2)                  ;42aa 0048 
+;  114:		IncBuffer_of(driverdata,&driverdata->buffercurrsend);
+              LEA            $3c(A2),A0               ;41ea 003c 
+              ADDQ.L         #$4,(A0)                 ;5890 
+              MOVE.L         (A0),A1                  ;2250 
+              CMP.L          $44(A2),A1               ;b3ea 0044 
+              BNE.B          ___Transmitter_oldformat__16;6604 
+___Transmitter_oldformat__15:
+              MOVE.L         $38(A2),(A0)             ;20aa 0038 
+___Transmitter_oldformat__16:
+;  115:		if(driverdata->unsent==0 && driverdata->unsent_rt==0){
+              TST.L          $50(A2)                  ;4aaa 0050 
+              BNE.W          ___Transmitter_oldformat__42;6600 00f4 
+___Transmitter_oldformat__17:
+              TST.L          $54(A2)                  ;4aaa 0054 
+              BNE.W          ___Transmitter_oldformat__42;6600 00ec 
+___Transmitter_oldformat__18:
+;  116:			driverdata->isnowtransmitting=0;
+              CLR.L          $78(A2)                  ;42aa 0078 
+;  117:			putreg(REG_D1,0xff);
+              MOVEQ.L        #$0,D1                   ;7200 
+              NOT.B          D1                       ;4601 
+;  118:			return ret;
+              BRA.W          ___Transmitter_oldformat__44;6000 00e6 
+___Transmitter_oldformat__19:
+___Transmitter_oldformat__20:
+;  119:		}
+;  120:	}else{
+;  121:		driverdata->unsent++;
+              ADDQ.L         #$1,$50(A2)              ;52aa 0050 
+;  122:		if(driverdata->sendpos==0){
+              TST.L          $48(A2)                  ;4aaa 0048 
+              BNE.W          ___Transmitter_oldformat__40;6600 00ca 
+___Transmitter_oldformat__21:
+;  123:			if(driverdata->realtimesysx==1){		//Realtime SysX handling.
+              CMP.L          $7c(A2),D0               ;b0aa 007c 
+              BNE.B          ___Transmitter_oldformat__28;665e 
+___Transmitter_oldformat__22:
+;  124:				driverdata->status=0;				//System common category status cancels running status
+              CLR.L          $4c(A2)                  ;42aa 004c 
+;  125:				ret=driverdata->buffer_sx[driverdata->buffercurrsend_sx];
+              LEA            $5c(A2),A5               ;4bea 005c 
+              MOVE.L         (A5)+,D1                 ;221d 
+              MOVE.L         (A5)+,A0                 ;205d 
+;  126:				driverdata->buffercurrsend_sx++;
+              MOVE.B         $0(A0,D1.L),D7           ;1e30 1800 
+;  127:				driverdata->unsent_sx--;
+              ADDQ.L         #$1,$5c(A2)              ;52aa 005c 
+;  128:				if(driverdata->unsent_sx>0){
+              SUBQ.L         #$1,(A5)+                ;539d 
+              BLE.B          ___Transmitter_oldformat__24;6f0e 
+___Transmitter_oldformat__23:
+;  129:					driverdata->isnowtransmitting=0;
+              CLR.L          $78(A2)                  ;42aa 0078 
+;  130:					putreg(REG_D1,0);
+              MOVEQ.L        #$0,D1                   ;7200 
+;  131:					return ret;
+              MOVEQ.L        #$0,D0                   ;7000 
+              MOVE.B         D7,D0                    ;1007 
+              BRA.W          ___Transmitter_oldformat__45;6000 00b2 
+___Transmitter_oldformat__24:
+;  132:				}else{
+;  133:					if(driverdata->unsent==0 && driverdata->unsent_rt==0){
+              TST.L          $50(A2)                  ;4aaa 0050 
+              BNE.B          ___Transmitter_oldformat__27;661e 
+___Transmitter_oldformat__25:
+              TST.L          $54(A2)                  ;4aaa 0054 
+              BNE.B          ___Transmitter_oldformat__27;6618 
+___Transmitter_oldformat__26:
+;  134:						driverdata->realtimesysx=0;
+              CLR.L          $7c(A2)                  ;42aa 007c 
+;  135:						driverdata->isnowtransmitting=0;
+              CLR.L          $78(A2)                  ;42aa 0078 
+;  136:						putreg(REG_D1,0xff);
+              MOVEQ.L        #$0,D1                   ;7200 
+              NOT.B          D1                       ;4601 
+;  137:						driverdata->issending_sx=0;
+              CLR.L          $58(A2)                  ;42aa 0058 
+;  138:						return ret;
+              MOVEQ.L        #$0,D0                   ;7000 
+              MOVE.B         D7,D0                    ;1007 
+              BRA.W          ___Transmitter_oldformat__45;6000 008e 
+___Transmitter_oldformat__27:
+;  139:					}else{
+;  140:						driverdata->realtimesysx=0;
+              CLR.L          $7c(A2)                  ;42aa 007c 
+;  141:						driverdata->isnowtransmitting=0;
+              CLR.L          $78(A2)                  ;42aa 0078 
+;  142:						driverdata->issending_sx=0;
+              CLR.L          $58(A2)                  ;42aa 0058 
+;  143:						putreg(REG_D1,0);
+              MOVEQ.L        #$0,D1                   ;7200 
+;  144:						return ret;
+              MOVEQ.L        #$0,D0                   ;7000 
+              MOVE.B         D7,D0                    ;1007 
+              BRA.B          ___Transmitter_oldformat__45;6078 
+___Transmitter_oldformat__28:
+;  145:					}
+;  146:				}
+;  147:			}
+;  148:			ret=buf[0];
+              MOVE.B         (A5),D6                  ;1c15 
+;  149:			if(ret==driverdata->status){
+              MOVEQ.L        #$0,D0                   ;7000 
+              MOVE.B         D6,D0                    ;1006 
+              CMP.L          $4c(A2),D0               ;b0aa 004c 
+              BNE.B          ___Transmitter_oldformat__37;663c 
+___Transmitter_oldformat__29:
+;  150:				ret=buf[1];
+              MOVE.B         $1(A5),D6                ;1c2d 0001 
+;  151:				if(len==1){
+              SUBQ.B         #$1,D7                   ;5307 
+              BNE.B          ___Transmitter_oldformat__36;662c 
+___Transmitter_oldformat__30:
+;  152:					driverdata->sendpos=0;
+              CLR.L          $48(A2)                  ;42aa 0048 
+;  153:					IncBuffer_of(driverdata,&driverdata->buffercurrsend);
+              LEA            $3c(A2),A0               ;41ea 003c 
+              ADDQ.L         #$4,(A0)                 ;5890 
+              MOVE.L         (A0),A1                  ;2250 
+              CMP.L          $44(A2),A1               ;b3ea 0044 
+              BNE.B          ___Transmitter_oldformat__32;6604 
+___Transmitter_oldformat__31:
+              MOVE.L         $38(A2),(A0)             ;20aa 0038 
+___Transmitter_oldformat__32:
+;  154:					driverdata->unsent--;
+              SUBQ.L         #$1,$50(A2)              ;53aa 0050 
+;  155:					if(driverdata->unsent==0 && driverdata->unsent_rt==0){
+              BNE.B          ___Transmitter_oldformat__42;663e 
+___Transmitter_oldformat__33:
+              TST.L          $54(A2)                  ;4aaa 0054 
+              BNE.B          ___Transmitter_oldformat__42;6638 
+___Transmitter_oldformat__34:
+;  156:						driverdata->isnowtransmitting=0;
+              CLR.L          $78(A2)                  ;42aa 0078 
+;  157:						putreg(REG_D1,0xff);
+              MOVEQ.L        #$0,D1                   ;7200 
+              NOT.B          D1                       ;4601 
+;  158:						return ret;
+              BRA.B          ___Transmitter_oldformat__44;6034 
+___Transmitter_oldformat__35:
+___Transmitter_oldformat__36:
+;  159:					}
+;  160:				}else{
+;  161:					driverdata->sendpos=2;
+              MOVEQ.L        #$2,D0                   ;7002 
+              MOVE.L         D0,$48(A2)               ;2540 0048 
+              BRA.B          ___Transmitter_oldformat__42;6026 
+___Transmitter_oldformat__37:
+;  162:				}
+;  163:			}else{
+;  164:				driverdata->sendpos=1;
+              MOVEQ.L        #$1,D0                   ;7001 
+              MOVE.L         D0,$48(A2)               ;2540 0048 
+;  165:				if(ret>0xf0){
+              CMPI.B         #$f0,D6                  ;0c06 00f0 
+              BLS.B          ___Transmitter_oldformat__39;6306 
+___Transmitter_oldformat__38:
+;  166:					driverdata->status=0;	//System common category status cancels running status
+              CLR.L          $4c(A2)                  ;42aa 004c 
+              BRA.B          ___Transmitter_oldformat__42;6014 
+___Transmitter_oldformat__39:
+;  167:				}else{
+;  168:					driverdata->status=ret;
+              MOVEQ.L        #$0,D1                   ;7200 
+              MOVE.B         D6,D1                    ;1206 
+              MOVE.L         D1,$4c(A2)               ;2541 004c 
+              BRA.B          ___Transmitter_oldformat__42;600a 
+___Transmitter_oldformat__40:
+;  169:				}
+;  170:			}
+;  171:		}else{
+;  172:			ret=buf[1];
+              MOVE.B         $1(A5),D6                ;1c2d 0001 
+;  173:			driverdata->sendpos=2;
+              MOVEQ.L        #$2,D1                   ;7202 
+              MOVE.L         D1,$48(A2)               ;2541 0048 
+___Transmitter_oldformat__41:
+___Transmitter_oldformat__42:
+              CLR.L          $78(A2)                  ;42aa 0078 
+              MOVEQ.L        #$0,D1                   ;7200 
+___Transmitter_oldformat__43:
+___Transmitter_oldformat__44:
+              MOVEQ.L        #$0,D0                   ;7000 
+              MOVE.B         D6,D0                    ;1006 
+___Transmitter_oldformat__45:
+              MOVEM.L        (A7)+,D2/D6/D7/A5        ;4cdf 20c4 
+              RTS                                     ;4e75 
+@Midi2Driver_rt_oldformat:
+;  174:		}
+;  175:	}
+;  176:
+;  177:	driverdata->isnowtransmitting=0;
+;  178:	putreg(REG_D1,0);
+;  179:	return ret;
+;  180:}
+;  181:
+;  182:
+;  183:BOOL Midi2Driver_rt_oldformat(struct DriverData *driverdata,ULONG msg){
+              MOVEM.L        D7/A2/A3/A6,-(A7)        ;48e7 0132 
+___Midi2Driver_rt_oldformat__1:
+              MOVE.L         D0,D7                    ;2e00 
+              MOVE.L         A0,A2                    ;2448 
+;  184:
+;  185:	Disable();
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $ffffff88(A6)            ;4eae ff88 
+;  186:		if(
+;  187:			driverdata->unsent_rt>=OUTBUFFERSIZE_RT-2 ||
+              MOVE.L         $54(A2),D0               ;202a 0054 
+              CMPI.L         #$3ff,D0                 ;0c80 0000 03ff 
+              BGE.B          ___Midi2Driver_rt_oldformat__4;6c0c 
+___Midi2Driver_rt_oldformat__2:
+;  188:			(driverdata->unsent_rt<=1 && driverdata->isnowtransmitting!=0)
+              MOVEQ.L        #$1,D1                   ;7201 
+              CMP.L          D1,D0                    ;b081 
+              BGT.B          ___Midi2Driver_rt_oldformat__5;6e0e 
+___Midi2Driver_rt_oldformat__3:
+              TST.L          $78(A2)                  ;4aaa 0078 
+              BEQ.B          ___Midi2Driver_rt_oldformat__5;6708 
+___Midi2Driver_rt_oldformat__4:
+;  189:		){
+;  190:			Enable();
+              JSR            $ffffff82(A6)            ;4eae ff82 
+;  191:			return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___Midi2Driver_rt_oldformat__8;6042 
+___Midi2Driver_rt_oldformat__5:
+;  192:		}
+;  193:		*driverdata->buffercurr_rt=msg;
+              MOVE.L         $70(A2),A0               ;206a 0070 
+              MOVE.B         D7,(A0)                  ;1087 
+;  194:		driverdata->unsent_rt++;
+              ADDQ.L         #$1,$54(A2)              ;52aa 0054 
+;  195:
+;  196:		IncBuffer_rt_of(driverdata,&driverdata->buffercurr_rt);
+              LEA            $70(A2),A0               ;41ea 0070 
+              ADDQ.L         #$1,(A0)                 ;5290 
+              MOVE.L         (A0),A1                  ;2250 
+              CMP.L          $74(A2),A1               ;b3ea 0074 
+              BNE.B          ___Midi2Driver_rt_oldformat__7;6604 
+___Midi2Driver_rt_oldformat__6:
+              MOVE.L         $68(A2),(A0)             ;20aa 0068 
+___Midi2Driver_rt_oldformat__7:
+;  197:
+;  198:		ObtainSemaphore(&driverdata->sendsemaphore);
+              LEA            $88(A2),A3               ;47ea 0088 
+              MOVE.L         A3,A0                    ;204b 
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $fffffdcc(A6)            ;4eae fdcc 
+;  199:
+;  200:		Enable();
+              JSR            $ffffff82(A6)            ;4eae ff82 
+;  201:
+;  202:		(*driverdata->midiportdata->ActivateXmit)(driverdata,driverdata->portnum);
+              MOVE.L         $28(A2),A0               ;206a 0028 
+              MOVE.L         (A0),A1                  ;2250 
+              MOVE.L         $30(A2),D0               ;202a 0030 
+              JSR            (A1)                     ;4e91 
+;  203:
+;  204:	ReleaseSemaphore(&driverdata->sendsemaphore);
+              MOVE.L         A3,A0                    ;204b 
+              JSR            $fffffdc6(A6)            ;4eae fdc6 
+;  205:
+;  206:	return TRUE;
+              MOVEQ.L        #$1,D0                   ;7001 
+___Midi2Driver_rt_oldformat__8:
+              MOVEM.L        (A7)+,D7/A2/A3/A6        ;4cdf 4c80 
+              RTS                                     ;4e75 
+@Midi2Driver_internal_oldformat:
+;  207:}
+;  208:
+;  209:
+;  210:
+;  211:
+;  212:
+;  213:BOOL Midi2Driver_internal_oldformat(
+;  214:	struct DriverData *driverdata,
+;  215:	ULONG msg,
+;  216:	ULONG maxbuff
+;  217:){
+              MOVEM.L        D5/D7/A2/A3/A6,-(A7)     ;48e7 0532 
+___Midi2Driver_internal_oldformat__1:
+              MOVE.L         D0,D7                    ;2e00 
+              MOVE.L         A0,A2                    ;2448 
+;  218:
+;  219:	if(msg>=0xf8000000) return Midi2Driver_rt_oldformat(driverdata,msg);
+              CMPI.L         #$f8000000,D7            ;0c87 f800 0000 
+              BCS.B          ___Midi2Driver_internal_oldformat__10;6570 
+___Midi2Driver_internal_oldformat__2:
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $ffffff88(A6)            ;4eae ff88 
+              MOVE.L         $54(A2),D0               ;202a 0054 
+              CMPI.L         #$3ff,D0                 ;0c80 0000 03ff 
+              BGE.B          ___Midi2Driver_internal_oldformat__5;6c0c 
+___Midi2Driver_internal_oldformat__3:
+              MOVEQ.L        #$1,D1                   ;7201 
+              CMP.L          D1,D0                    ;b081 
+              BGT.B          ___Midi2Driver_internal_oldformat__6;6e0e 
+___Midi2Driver_internal_oldformat__4:
+              TST.L          $78(A2)                  ;4aaa 0078 
+              BEQ.B          ___Midi2Driver_internal_oldformat__6;6708 
+___Midi2Driver_internal_oldformat__5:
+              JSR            $ffffff82(A6)            ;4eae ff82 
+              MOVEQ.L        #$0,D5                   ;7a00 
+              BRA.B          ___Midi2Driver_internal_oldformat__9;6042 
+___Midi2Driver_internal_oldformat__6:
+              MOVE.L         $70(A2),A0               ;206a 0070 
+              MOVE.B         D7,(A0)                  ;1087 
+              ADDQ.L         #$1,$54(A2)              ;52aa 0054 
+              LEA            $70(A2),A0               ;41ea 0070 
+              ADDQ.L         #$1,(A0)                 ;5290 
+              MOVE.L         (A0),A1                  ;2250 
+              CMP.L          $74(A2),A1               ;b3ea 0074 
+              BNE.B          ___Midi2Driver_internal_oldformat__8;6604 
+___Midi2Driver_internal_oldformat__7:
+              MOVE.L         $68(A2),(A0)             ;20aa 0068 
+___Midi2Driver_internal_oldformat__8:
+              LEA            $88(A2),A3               ;47ea 0088 
+              MOVE.L         A3,A0                    ;204b 
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $fffffdcc(A6)            ;4eae fdcc 
+              JSR            $ffffff82(A6)            ;4eae ff82 
+              MOVE.L         $28(A2),A0               ;206a 0028 
+              MOVE.L         (A0),A1                  ;2250 
+              MOVE.L         $30(A2),D0               ;202a 0030 
+              JSR            (A1)                     ;4e91 
+              MOVE.L         A3,A0                    ;204b 
+              JSR            $fffffdc6(A6)            ;4eae fdc6 
+              MOVEQ.L        #$1,D5                   ;7a01 
+___Midi2Driver_internal_oldformat__9:
+              MOVE.W         D5,D0                    ;3005 
+              BRA.W          ___Midi2Driver_internal_oldformat__22;6000 0098 
+___Midi2Driver_internal_oldformat__10:
+;  220:
+;  221:	if(driverdata->unsent>=min(maxbuff,OUTBUFFERSIZE-2)){
+              CMPI.L         #$3ff,D1                 ;0c81 0000 03ff 
+              BHI.B          ___Midi2Driver_internal_oldformat__12;6204 
+___Midi2Driver_internal_oldformat__11:
+              MOVE.L         D1,D0                    ;2001 
+              BRA.B          ___Midi2Driver_internal_oldformat__13;6006 
+___Midi2Driver_internal_oldformat__12:
+              MOVE.L         #$3ff,D0                 ;203c 0000 03ff 
+___Midi2Driver_internal_oldformat__13:
+              MOVE.L         $50(A2),D1               ;222a 0050 
+              CMP.L          D0,D1                    ;b280 
+              BCS.B          ___Midi2Driver_internal_oldformat__15;6504 
+___Midi2Driver_internal_oldformat__14:
+;  222:		return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___Midi2Driver_internal_oldformat__22;6078 
+___Midi2Driver_internal_oldformat__15:
+;  223:	}
+;  224:
+;  225:	Disable();
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $ffffff88(A6)            ;4eae ff88 
+;  226:		if(
+;  227:			driverdata->unsent>=OUTBUFFERSIZE-2 ||
+              MOVE.L         $50(A2),D0               ;202a 0050 
+              CMPI.L         #$3ff,D0                 ;0c80 0000 03ff 
+              BGE.B          ___Midi2Driver_internal_oldformat__18;6c0c 
+___Midi2Driver_internal_oldformat__16:
+;  228:			(driverdata->unsent<=1 && driverdata->isnowtransmitting!=0)
+              MOVEQ.L        #$1,D1                   ;7201 
+              CMP.L          D1,D0                    ;b081 
+              BGT.B          ___Midi2Driver_internal_oldformat__19;6e0e 
+___Midi2Driver_internal_oldformat__17:
+              TST.L          $78(A2)                  ;4aaa 0078 
+              BEQ.B          ___Midi2Driver_internal_oldformat__19;6708 
+___Midi2Driver_internal_oldformat__18:
+;  229:		){
+;  230:			Enable();
+              JSR            $ffffff82(A6)            ;4eae ff82 
+;  231:			return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___Midi2Driver_internal_oldformat__22;6050 
+___Midi2Driver_internal_oldformat__19:
+;  232:		}
+;  233:
+;  234:		*driverdata->buffercurr=(msg & 0xffffff00) | GetMsgLen(msg);
+              MOVE.L         $40(A2),A3               ;266a 0040 
+              MOVE.L         D7,D0                    ;2007 
+              BSR.W          @GetMsgLen               ;6100 0000 
+              EXT.W          D0                       ;4880 
+              EXT.L          D0                       ;48c0 
+              CLR.B          D7                       ;4207 
+              OR.L           D0,D7                    ;8e80 
+              MOVE.L         D7,(A3)                  ;2687 
+;  235:		driverdata->unsent++;
+              ADDQ.L         #$1,$50(A2)              ;52aa 0050 
+;  236:
+;  237:		IncBuffer_of(driverdata,&driverdata->buffercurr);
+              LEA            $40(A2),A0               ;41ea 0040 
+              ADDQ.L         #$4,(A0)                 ;5890 
+              MOVE.L         (A0),A1                  ;2250 
+              CMP.L          $44(A2),A1               ;b3ea 0044 
+              BNE.B          ___Midi2Driver_internal_oldformat__21;6604 
+___Midi2Driver_internal_oldformat__20:
+              MOVE.L         $38(A2),(A0)             ;20aa 0038 
+___Midi2Driver_internal_oldformat__21:
+;  238:
+;  239:		ObtainSemaphore(&driverdata->sendsemaphore);
+              LEA            $88(A2),A3               ;47ea 0088 
+              MOVE.L         A3,A0                    ;204b 
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $fffffdcc(A6)            ;4eae fdcc 
+;  240:
+;  241:		Enable();
+              JSR            $ffffff82(A6)            ;4eae ff82 
+;  242:
+;  243:		(*driverdata->midiportdata->ActivateXmit)(driverdata,driverdata->portnum);
+              MOVE.L         $28(A2),A0               ;206a 0028 
+              MOVE.L         (A0),A1                  ;2250 
+              MOVE.L         $30(A2),D0               ;202a 0030 
+              JSR            (A1)                     ;4e91 
+;  244:
+;  245:	ReleaseSemaphore(&driverdata->sendsemaphore);
+              MOVE.L         A3,A0                    ;204b 
+              JSR            $fffffdc6(A6)            ;4eae fdc6 
+;  246:
+;  247:
+;  248:	return TRUE;
+              MOVEQ.L        #$1,D0                   ;7001 
+___Midi2Driver_internal_oldformat__22:
+              MOVEM.L        (A7)+,D5/D7/A2/A3/A6     ;4cdf 4ca0 
+              RTS                                     ;4e75 
+@SysEx2Driver_oldformat:
+;  249:}
+;  250:
+;  251:extern int GetSysXLen(UBYTE *buffer);
+;  252:
+;  253:BOOL SysEx2Driver_oldformat(struct DriverData *driverdata, UBYTE *buffer){
+              SUBQ.W         #$4,A7                   ;594f 
+              MOVEM.L        D6/D7/A2/A3/A6,-(A7)     ;48e7 0332 
+___SysEx2Driver_oldformat__1:
+              MOVE.L         A0,A2                    ;2448 
+              MOVE.L         A1,A3                    ;2649 
+;  254:
+;  255:	int len=GetSysXLen(buffer);
+              MOVE.L         A1,$14(A7)               ;2f49 0014 
+              MOVE.L         A3,A0                    ;204b 
+              BSR.W          @GetSysXLen              ;6100 0000 
+              MOVE.L         D0,D7                    ;2e00 
+;  256:
+;  257:	int realtime= (buffer[1]==0x7f ? 1 : 0);
+              MOVEQ.L        #$7f,D0                  ;707f 
+              CMP.B          $1(A3),D0                ;b02b 0001 
+              SEQ            D0                       ;57c0 
+              MOVEQ.L        #$0,D1                   ;7200 
+              SUB.B          D0,D1                    ;9200 
+              MOVE.L         D1,D6                    ;2c01 
+;  258:
+;  259:	if(
+;  260:		(realtime==0 && driverdata->unsent==OUTBUFFERSIZE-1) ||
+              BNE.B          ___SysEx2Driver_oldformat__3;660a 
+___SysEx2Driver_oldformat__2:
+              CMPI.L         #$400,$50(A2)            ;0caa 0000 0400 0050 
+              BEQ.B          ___SysEx2Driver_oldformat__6;6714 
+___SysEx2Driver_oldformat__3:
+;  261:		(realtime==1 && driverdata->realtimesysx==1) ||
+              MOVE.L         D6,D0                    ;2006 
+              SUBQ.L         #$1,D0                   ;5380 
+              BNE.B          ___SysEx2Driver_oldformat__5;6608 
+___SysEx2Driver_oldformat__4:
+              MOVEQ.L        #$1,D0                   ;7001 
+              CMP.L          $7c(A2),D0               ;b0aa 007c 
+              BEQ.B          ___SysEx2Driver_oldformat__6;6706 
+___SysEx2Driver_oldformat__5:
+;  262:		driverdata->unsent_sx!=0
+              TST.L          $64(A2)                  ;4aaa 0064 
+              BEQ.B          ___SysEx2Driver_oldformat__7;6706 
+___SysEx2Driver_oldformat__6:
+;  263:	){
+;  264:		return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.W          ___SysEx2Driver_oldformat__18;6000 0092 
+___SysEx2Driver_oldformat__7:
+;  265:	}
+;  266:
+;  267:	Disable();
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $ffffff88(A6)            ;4eae ff88 
+;  268:
+;  269:		if(
+;  270:			(realtime==0 && driverdata->unsent==OUTBUFFERSIZE-1) ||
+              TST.L          D6                       ;4a86 
+              BNE.B          ___SysEx2Driver_oldformat__9;660a 
+___SysEx2Driver_oldformat__8:
+              CMPI.L         #$400,$50(A2)            ;0caa 0000 0400 0050 
+              BEQ.B          ___SysEx2Driver_oldformat__12;6714 
+___SysEx2Driver_oldformat__9:
+;  271:			(realtime==1 && driverdata->realtimesysx==1) ||
+              MOVE.L         D6,D0                    ;2006 
+              SUBQ.L         #$1,D0                   ;5380 
+              BNE.B          ___SysEx2Driver_oldformat__11;6608 
+___SysEx2Driver_oldformat__10:
+              MOVEQ.L        #$1,D0                   ;7001 
+              CMP.L          $7c(A2),D0               ;b0aa 007c 
+              BEQ.B          ___SysEx2Driver_oldformat__12;6706 
+___SysEx2Driver_oldformat__11:
+;  272:			driverdata->unsent_sx!=0
+              TST.L          $64(A2)                  ;4aaa 0064 
+              BEQ.B          ___SysEx2Driver_oldformat__13;6708 
+___SysEx2Driver_oldformat__12:
+;  273:		){
+;  274:			Enable();
+              JSR            $ffffff82(A6)            ;4eae ff82 
+;  275:			return FALSE;
+              MOVEQ.L        #$0,D0                   ;7000 
+              BRA.B          ___SysEx2Driver_oldformat__18;605e 
+___SysEx2Driver_oldformat__13:
+;  276:		}
+;  277:
+;  278:		driverdata->buffer_sx=buffer;
+              MOVE.L         A3,$60(A2)               ;254b 0060 
+;  279:		driverdata->unsent_sx=len;
+              MOVE.L         D7,$64(A2)               ;2547 0064 
+;  280:		driverdata->buffercurrsend_sx=0;
+              CLR.L          $5c(A2)                  ;42aa 005c 
+;  281:
+;  282:		if(realtime==0){
+              TST.L          D6                       ;4a86 
+              BNE.B          ___SysEx2Driver_oldformat__16;6622 
+___SysEx2Driver_oldformat__14:
+;  283:			*driverdata->buffercurr=0xf0000000;
+              MOVE.L         $40(A2),A0               ;206a 0040 
+              MOVE.L         #$f0000000,(A0)          ;20bc f000 0000 
+;  284:			driverdata->unsent++;
+              ADDQ.L         #$1,$50(A2)              ;52aa 0050 
+;  285:			IncBuffer_of(driverdata,&driverdata->buffercurr);
+              LEA            $40(A2),A0               ;41ea 0040 
+              ADDQ.L         #$4,(A0)                 ;5890 
+              MOVE.L         (A0),A1                  ;2250 
+              CMP.L          $44(A2),A1               ;b3ea 0044 
+              BNE.B          ___SysEx2Driver_oldformat__17;660c 
+___SysEx2Driver_oldformat__15:
+              MOVE.L         $38(A2),(A0)             ;20aa 0038 
+              BRA.B          ___SysEx2Driver_oldformat__17;6006 
+___SysEx2Driver_oldformat__16:
+;  286:		}else{
+;  287:			driverdata->realtimesysx=1;
+              MOVEQ.L        #$1,D0                   ;7001 
+              MOVE.L         D0,$7c(A2)               ;2540 007c 
+___SysEx2Driver_oldformat__17:
+;  288:		}
+;  289:
+;  290:		ObtainSemaphore(&driverdata->sendsemaphore);
+              LEA            $88(A2),A3               ;47ea 0088 
+              MOVE.L         A3,A0                    ;204b 
+              MOVE.L         SysBase(A4),A6           ;2c6c 0000 
+              JSR            $fffffdcc(A6)            ;4eae fdcc 
+;  291:
+;  292:		Enable();
+              JSR            $ffffff82(A6)            ;4eae ff82 
+;  293:
+;  294:		(*driverdata->midiportdata->ActivateXmit)(driverdata,driverdata->portnum);
+              MOVE.L         $28(A2),A0               ;206a 0028 
+              MOVE.L         (A0),A1                  ;2250 
+              MOVE.L         $30(A2),D0               ;202a 0030 
+              JSR            (A1)                     ;4e91 
+;  295:
+;  296:	ReleaseSemaphore(&driverdata->sendsemaphore);
+              MOVE.L         A3,A0                    ;204b 
+              JSR            $fffffdc6(A6)            ;4eae fdc6 
+;  297:
+;  298:	return TRUE;
+              MOVEQ.L        #$1,D0                   ;7001 
+___SysEx2Driver_oldformat__18:
+              MOVEM.L        (A7)+,D6/D7/A2/A3/A6     ;4cdf 4cc0 
+              ADDQ.W         #$4,A7                   ;584f 
+              RTS                                     ;4e75 
+              XREF           SysBase
+              XREF           @GetMsgLen
+              XREF           @GetSysXLen
+              XDEF           @IncBuffer_of
+              XDEF           @IncBuffer_rt_of
+              XDEF           Transmitter_oldformat
+              XDEF           @Midi2Driver_rt_oldformat
+              XDEF           @Midi2Driver_internal_oldformat
+              XDEF           @SysEx2Driver_oldformat
+              END
